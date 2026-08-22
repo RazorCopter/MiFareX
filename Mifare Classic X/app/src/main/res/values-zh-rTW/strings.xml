@@ -1,0 +1,678 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+/*
+ * Copyright 2013 Gerhard Klostermeier
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+-->
+
+
+<resources>
+    <!-- TODO: this is uncategorized -->
+    <string name="hint_staging_block">暫存區塊</string>
+    <string name="hint_destination_block">目標區塊</string>
+    <string name="hint_value_decimal">數值 (32 位元整數)</string>
+    <string name="hint_address_hex">位址 (十六進位)</string>
+    <string name="btn_execute_transfer_restore">執行傳輸還原</string>
+
+
+    <!-- Common stuff -->
+    <string name="app_name">MiFareX</string>
+    <string name="app_version">App 版本</string>
+
+    <!-- Activity titles -->
+    <string name="title_activity_main">MiFareX</string>
+    <string name="title_activity_read_tag">讀取標籤</string>
+    <string name="title_activity_dump_editor">傾印編輯器</string>
+    <string name="title_activity_access_conditions">存取條件</string>
+    <string name="title_activity_write_tag">寫入標籤</string>
+    <string name="title_activity_create_key_map">金鑰與磁區對應</string>
+    <string name="title_activity_file_chooser">檔案選擇器</string>
+    <string name="title_activity_value_blocks">數值區塊 (整數顯示)</string>
+    <string name="title_activity_key_editor">金鑰編輯器</string>
+    <string name="title_activity_help">說明與資訊</string>
+    <string name="title_activity_hex_to_ascii">以 ASCII 顯示資料</string>
+    <string name="title_activity_tag_info">標籤資訊</string>
+    <string name="title_activity_value_block_tool">數值區塊解碼器
+        &amp; 編碼器</string>
+    <string name="title_activity_access_condition_tool">存取條件
+        解碼器 &amp; 編碼器</string>
+    <string name="title_activity_preferences">偏好設定</string>
+    <string name="title_activity_diff_tool">差異比對工具</string>
+    <string name="title_activity_bcc_tool">BCC 計算器</string>
+    <string name="title_activity_clone_uid">複製 UID 至 Magic Tag (第 2 代)</string>
+    <string name="title_activity_import_export_tool">匯入/匯出工具</string>
+    <string name="title_activity_uid_log_tool">UID 記錄</string>
+    <string name="title_activity_data_conversion_tool">資料轉換工具</string>
+
+    <!-- Texts (labels etc.) -->
+    <string name="text_choose_key_files">請選擇金鑰檔案：</string>
+    <string name="text_wait_read_tag">正在讀取標籤&#8230;\n(請勿移開標籤)</string>
+    <string name="text_key_map_progress">金鑰對應進度：</string>
+    <string name="text_sector">磁區</string>
+    <string name="text_block">區塊</string>
+    <string name="text_caption_title">圖例說明</string>
+    <string name="text_keya">金鑰 A</string>
+    <string name="text_keyb">金鑰 B</string>
+    <string name="text_ac">存取條件</string>
+    <string name="text_uid">UID</string>
+    <string name="text_uid_and_manuf">UID &amp; 製造商資訊</string>
+    <string name="text_valueblock">數值區塊</string>
+    <string name="text_chooser_info_text">請選擇檔案：</string>
+    <string name="text_open_dump_title">開啟標籤傾印</string>
+    <string name="text_no_files_in_chooser">找不到任何檔案</string>
+    <string name="text_ac_read">讀取：</string>
+    <string name="text_ac_write">寫入：</string>
+    <string name="text_ac_incr">遞增：</string>
+    <string name="text_ac_decr">遞減/傳輸/還原：</string>
+    <string name="text_ac_pos">位置：</string>
+    <string name="text_ac_error">錯誤：無法辨識此組態</string>
+    <string name="text_vb_location">位置：</string>
+    <string name="text_vb_value">數值：</string>
+    <string name="text_vb_orig">原始值：</string>
+    <string name="text_vb_as_int_decoded">整數值：</string>
+    <string name="text_sector_range">請選擇要對應的磁區範圍：</string>
+    <string name="text_sector_range_all">全部</string>
+    <string name="text_update_colors">更新顏色</string>
+    <string name="text_data">資料</string>
+    <string name="text_value">數值</string>
+    <string name="text_write_dump_info">將傾印檔 (或其中部分磁區) 寫入標籤。
+        包含未知資料 (---) 的區塊將被略過！</string>
+    <string name="text_factory_format_info">嘗試將標籤格式化為
+        出廠/初始狀態。</string>
+    <string name="text_incr_decr_value_block_info">遞增或遞減
+        數值區塊後執行傳輸。(如果不清楚數值區塊是什麼，
+        請參閱「說明與資訊」。)</string>
+    <string name="text_starting_at_0">(從 0 開始)</string>
+    <string name="text_open_key_file_title">開啟或建立金鑰檔案</string>
+    <string name="text_choose_dump_to_write">請選擇要寫入的傾印檔：</string>
+    <string name="text_from">從</string>
+    <string name="text_to">到</string>
+    <string name="text_key_a">金鑰 A</string>
+    <string name="text_key_b">金鑰 B</string>
+    <string name="text_key_ab">金鑰 A|B</string>
+    <string name="text_never">永不</string>
+    <string name="text_keys_not_known">金鑰 (A 和 B) 未知</string>
+    <string name="text_block_read_only">區塊為唯讀</string>
+    <string name="text_write_key_a_not_known">具有寫入權限的金鑰 (A)
+        未知</string>
+    <string name="text_write_key_b_not_known">具有寫入權限的金鑰 (B)
+        未知</string>
+    <string name="text_ac_read_only">存取條件為唯讀</string>
+    <string name="text_keys_read_only">金鑰 (A 和 B) 為唯讀</string>
+    <string name="text_invalid_ac_or_sector_dead">存取條件無效或
+        磁區已損壞 :(</string>
+    <string name="text_strange_error">發生不明錯誤 :(</string>
+    <string name="text_no_mfc_support_device">此裝置不支援
+        MIFARE Classic！</string>
+    <string name="text_no_mfc_support_tag">這不是 MIFARE Classic 標籤！</string>
+    <string name="text_no_tag">找不到 MIFARE Classic 標籤。</string>
+    <string name="text_generic_info">一般資訊</string>
+    <string name="text_mf_info">MIFARE Classic 資訊</string>
+    <string name="text_rf_tech">RF 技術</string>
+    <string name="text_rf_tech_14a">ISO/IEC 14443，Type A</string>
+    <string name="text_atqa">ATQA</string>
+    <string name="text_sak">SAK</string>
+    <string name="text_ats">ATS</string>
+    <string name="text_tag_type_and_manuf">標籤類型與製造商</string>
+    <string name="text_tag_type_guess">「標籤類型與製造商」的判斷結果可能有誤。\n
+        請參閱「說明與資訊」瞭解更多。</string>
+    <string name="text_mem_size">記憶體大小</string>
+    <string name="text_block_size">區塊大小</string>
+    <string name="text_sector_count">磁區數量</string>
+    <string name="text_block_count">區塊數量</string>
+    <string name="text_vb">數值區塊</string>
+    <string name="text_vb_as_int">數值區塊 (整數)</string>
+    <string name="text_addr">位址</string>
+    <string name="text_copy">複製</string>
+    <string name="text_paste">貼上</string>
+    <string name="text_option_info">選項說明</string>
+    <string name="text_static_ac_default">08778F</string>
+    <string name="text_no_key_io_error">找不到金鑰 (或磁區已損壞)</string>
+    <string name="text_ac_label">存取條件</string>
+    <string name="text_block_0">區塊 0 (0-4)：</string>
+    <string name="text_block_1">區塊 1 (5-9)：</string>
+    <string name="text_block_2">區塊 2 (10-14)：</string>
+    <string name="text_block_3">區塊 3 (15) - 磁區尾端：</string>
+    <string name="text_step_1_sector_trailer">步驟 1：
+        選擇磁區尾端的存取條件</string>
+    <string name="text_step_2_data_blocks">步驟 2：
+        選擇資料區塊的存取條件</string>
+    <string name="text_dump_1">傾印 1 (A)</string>
+    <string name="text_dump_2">傾印 2 (B)</string>
+    <string name="text_a">A：</string>
+    <string name="text_b">B：</string>
+    <string name="text_dump_from_editor">來自編輯器的傾印</string>
+    <string name="text_incr_decr_value_block">遞增/遞減數值區塊</string>
+    <string name="text_increment">遞增</string>
+    <string name="text_decrement">遞減</string>
+    <!-- Has to be 16 chars long. The text should be centered. -->
+    <string name="text_invalid_data">---資料無效---</string>
+    <string name="text_only_in_dump1">此磁區僅存在於傾印 1 (A)</string>
+    <string name="text_only_in_dump2">此磁區僅存在於傾印 2 (B)</string>
+    <string name="text_uid_part">UID (部分)</string>
+    <string name="text_bcc">BCC</string>
+    <string name="text_clone_uid_info">此工具可將標籤的 UID 複製到
+        「Magic Tag」(第 2 代，Android 相容，可直接寫入，
+        區塊 0 可寫入)。點選資訊按鈕可取得更多說明。</string>
+    <string name="text_uid_to_clone">要複製的 UID</string>
+    <string name="text_clone_uid_manufacturer_block_rest">區塊 0 的其餘部分</string>
+    <string name="text_write_key">用於寫入區塊 0 的金鑰</string>
+    <string name="text_status_log">狀態記錄</string>
+    <string name="text_use_uid_of_scanned_tag">使用已掃描標籤的 UID</string>
+    <string name="text_block_0_generated">已產生區塊 0</string>
+    <string name="text_data_to_write">要寫入的資料：</string>
+    <string name="text_waiting_for_magic_tag">正在等待 Magic Tag (第 2 代)</string>
+    <string name="text_writing_block_0">正在寫入區塊 0</string>
+    <string name="text_no_errors_on_write">寫入過程未發生錯誤</string>
+    <string name="text_rescan_tag_to_check">請重新掃描複製品以驗證結果</string>
+    <string name="text_checking_clone">正在檢查複製品</string>
+    <string name="text_clone_successfully">已成功複製 UID</string>
+    <string name="text_uid_match_error">UID 不相符</string>
+    <string name="text_clone_error">錯誤：請確認使用的是
+        Magic Tag (第 2 代)</string>
+    <string name="text_uid_length_error">錯誤：UID 長度不符 (4 vs. 7 vs. 10 位元組)</string>
+    <string name="text_block0_warning">警告：區塊 0 可能包含無效資料 (BCC/SAK/ATQA/UID0)</string>
+    <string name="text_sak_atqa_calc_warning">警告：無法計算 SAK/ATQA，將使用預設值</string>
+    <string name="text_reset_clone_process">正在重設複製流程</string>
+    <string name="text_select_file">選擇檔案</string>
+    <string name="text_choose_dump_file">選擇傾印檔</string>
+    <string name="text_choose_key_file">選擇金鑰檔案</string>
+    <string name="text_import_export_tool_info">匯入時，如果已有同名檔案，
+        將會覆寫該檔案。</string>
+    <string name="text_random_uid">隨機 UID</string>
+    <string name="text_no_uid_logs">UID 記錄為空</string>
+    <string name="text_not_ascii">非 ASCII</string>
+    <string name="text_convert">轉換</string>
+    <string name="text_ascii">ASCII</string>
+    <string name="text_hex">Hex</string>
+    <string name="text_bin">Bin</string>
+    <string name="text_dec_be">Dec (BE)</string>
+    <string name="text_dec_le">Dec (LE)</string>
+    <string name="text_invalid_ac">存取條件無效</string>
+    <string name="text_missing_files_update">從 4.0.0 之前的版本更新後找不到檔案？
+            請參閱「說明與資訊」的「1.2 資料儲存」章節。</string>
+    <string name="text_more_converter">更多轉換工具 (線上)</string>
+    <string name="text_enter_file_name">請輸入檔案名稱</string>
+    <string name="text_difference_between_dumps">傾印檔之間的差異</string>
+    <string name="text_choose_language">選擇自訂 App 語言</string>
+    <string name="text_choose_theme">選擇自訂佈景主題</string>
+    <string name="text_transfer_restore_value_block">傳輸 &amp; 還原數值區塊</string>
+    <string name="text_transfer_restore_value_block_info">即使只有遞減/傳輸/還原權限，
+        也能設定數值區塊的值</string>
+    <string name="text_staging">暫存</string>
+    <string name="text_destination">目標</string>
+    <string name="text_value_and_address">數值 &amp; 位址</string>
+
+    <!-- Actions (Buttons, Checkboxs, etc. -->
+    <string name="action_read_tag">讀取標籤</string>
+    <string name="action_write_tag">寫入標籤</string>
+    <string name="action_edit_tag_dump">編輯/分析傾印檔</string>
+    <string name="action_edit_key_dump">編輯/新增金鑰檔案</string>
+    <string name="action_tools">工具</string>
+    <string name="action_exit_app">結束 App</string>
+    <string name="action_nfc">前往 NFC 設定</string>
+    <string name="action_create_key_map">金鑰與磁區對應</string>
+    <string name="action_create_key_map_and_read">開始對應並
+        讀取標籤</string>
+    <string name="action_help">說明與資訊</string>
+    <string name="action_editor_only">「離線」模式</string>
+    <string name="action_ok">確定</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_choose_file">選擇此檔案</string>
+    <string name="action_open_dump_file">開啟傾印檔</string>
+    <string name="action_change">變更</string>
+    <string name="action_read_all_sectors">讀取所有磁區</string>
+    <string name="action_write_block">寫入區塊</string>
+    <string name="action_create_key_map_and_write_block">開始對應並
+        寫入區塊</string>
+    <string name="action_create_key_map_and_write_dump">開始對應並
+        寫入傾印</string>
+    <string name="action_create_key_map_and_factory_format">開始對應並
+        格式化標籤</string>
+    <string name="action_create_key_map_and_write_value_block">開始對應並
+        寫入數值區塊</string>
+    <string name="action_write_full_dump">選擇傾印檔</string>
+    <string name="action_i_know_what_i_am_doing">我知道我在做什麼</string>
+    <string name="action_open_key_file">開啟金鑰檔案</string>
+    <string name="action_select_all">全選</string>
+    <string name="action_select_none">取消全選</string>
+    <string name="action_cancel_all">取消寫入</string>
+    <string name="action_skip_blocks">盡量寫入</string>
+    <string name="action_more">閱讀更多&#8230;</string>
+    <string name="action_decode">解碼</string>
+    <string name="action_encode">編碼</string>
+    <string name="action_wirte_block">寫入區塊</string>
+    <string name="action_write_dump_clone">寫入傾印 (複製)</string>
+    <string name="action_write_dump">寫入傾印</string>
+    <string name="action_factory_format">恢復出廠設定</string>
+    <string name="action_write_value_block">寫入數值區塊</string>
+    <string name="action_write_mfid">進階：啟用寫入
+        製造商區塊</string>
+    <string name="action_show_options">顯示選項</string>
+    <string name="action_static_ac">對所有磁區使用以下存取條件：</string>
+    <string name="action_retry_authentication">驗證失敗時重試</string>
+    <string name="action_auto_reconnect">進階：金鑰對應過程中標籤斷線時
+        自動重新連線</string>
+    <string name="action_auto_copy_uid">自動將新標籤的 UID 複製到剪貼簿</string>
+    <string name="action_save_last_key_files">記住上次選擇的金鑰檔案
+        (金鑰對應對話框)</string>
+    <string name="action_autostart_if_tag_detected">偵測到標籤時自動啟動 App</string>
+    <string name="action_use_custom_sector_count">使用自訂磁區數量</string>
+    <string name="action_save">儲存</string>
+    <string name="action_share">分享</string>
+    <string name="action_data_as_ascii">以 ASCII 顯示資料</string>
+    <string name="action_decode_ac">解碼存取條件</string>
+    <string name="action_show_value_blocks_as_int">以整數顯示數值區塊</string>
+    <string name="action_show_tag_info">顯示標籤資訊</string>
+    <string name="action_show_vb_tool">數值區塊解碼器/編碼器</string>
+    <string name="action_show_ac_tool">存取條件解碼器/編碼器</string>
+    <string name="action_show_diff_tool">差異比對工具 (比較傾印檔)</string>
+    <string name="action_show_bcc_tool">BCC 計算器</string>
+    <string name="action_show_clone_uid">複製 UID</string>
+    <string name="action_show_import_export_tool">匯入/匯出/轉換檔案</string>
+    <string name="action_show_uid_log_tool">UID 記錄</string>
+    <string name="action_show_data_conversion_tool">轉換資料</string>
+    <string name="action_compare_dump">比較傾印檔</string>
+    <string name="action_create_new_file">建立新檔案</string>
+    <string name="action_delete_file">刪除檔案</string>
+    <string name="action_remove_duplicates">移除重複的金鑰</string>
+    <string name="action_show_preferences">偏好設定</string>
+    <string name="action_show_about">關於</string>
+    <string name="action_decode_manuf_date">解碼製造日期</string>
+    <string name="action_replace">取代</string>
+    <string name="action_append">附加</string>
+    <string name="action_do_not_show_again">不再顯示此訊息</string>
+    <string name="action_chose_dump">選擇傾印檔&#8230;</string>
+    <string name="action_dont_save">不儲存</string>
+    <string name="action_save_as_default">儲存為預設值</string>
+    <string name="action_save_keys">儲存金鑰</string>
+    <string name="action_calc_bcc">計算 BCC</string>
+    <string name="action_install_external_nfc">安裝「External NFC」</string>
+    <string name="action_start_external_nfc">前往「External NFC」</string>
+    <string name="action_external_nfc_is_running">「External NFC」正在執行中</string>
+    <string name="action_clone_uid">產生區塊 0 並複製 UID</string>
+    <string name="action_calc_sak_atqa">自動計算 SAK 和 ATQA 值</string>
+    <string name="action_file_type_mct">.mct (MIFARE Classic Tool)</string>
+    <string name="action_file_type_keys">.keys/.dic/.txt (MIFARE Classic Tool, Proxmark)</string>
+    <string name="action_file_type_mdf_bin">.bin/.mfd/.dump (Proxmark, libnfc, mfoc, …)</string>
+    <string name="action_file_type_eml">.eml (Proxmark emulator)</string>
+    <string name="action_file_type_json">.json (Proxmark, Chameleon Mini GUI)</string>
+    <string name="action_file_type_bin">.bin (Proxmark, Chameleon Mini GUI)</string>
+    <string name="action_import_dump">匯入傾印檔</string>
+    <string name="action_export_dump">匯出傾印檔</string>
+    <string name="action_import_keys">匯入金鑰</string>
+    <string name="action_export_keys">匯出金鑰</string>
+    <string name="action_import_export_file">匯入/匯出檔案</string>
+    <string name="action_backup_all">備份/匯出全部</string>
+    <string name="action_generic_converter">通用類型轉換器</string>
+    <string name="action_multi_purpose_converter">多用途轉換器</string>
+    <string name="action_cyber_chef">Cyber Chef</string>
+    <string name="action_open_clone_uid_tool">開啟複製 UID 工具</string>
+    <string name="action_hide_identical_sectors">隱藏相同的磁區</string>
+    <string name="action_clear_logs">清除記錄</string>
+    <string-array name="action_themes">
+        <item>深色</item>
+        <item>淺色</item>
+        <item>跟隨系統 (Android 10 以上)</item>
+    </string-array>
+    <string name="action_write_value_block_transfer_restore">以傳輸 &amp; 還原方式
+        寫入數值區塊</string>
+
+    <!-- Toast messages -->
+    <string name="info_new_tag_found">偵測到新標籤</string>
+    <string name="info_no_tag_found">錯誤：找不到 MIFARE Classic 標籤。
+        請重新感應標籤後再試一次</string>
+    <string name="info_keys_loaded_please_wait">金鑰已載入。正在建立金鑰對應&#8230;
+        這可能需要一些時間&#8230;</string>
+    <string name="info_tag_removed_while_reading">錯誤：讀取過程中
+        標籤被移開</string>
+    <string name="info_no_vb_in_dump">此傾印中沒有數值區塊</string>
+    <string name="info_valid_dump_not_hex">錯誤：部分區塊包含
+        無效資料 (非十六進位)</string>
+    <string name="info_valid_dump_not_4_or_16_lines">錯誤：部分磁區
+        不含 4 或 16 個區塊 (行)</string>
+    <string name="info_valid_dump_not_16_bytes">錯誤：部分區塊
+        不是 16 位元組 (32 個字元)</string>
+    <string name="info_valid_dump_sector_range">錯誤：磁區超出範圍
+        (&#60; 0 或 &#62; 39)</string>
+    <string name="info_valid_dump_double_sector">錯誤：磁區號碼重複</string>
+    <string name="info_valid_dump_empty_dump">錯誤：傾印為空</string>
+    <string name="info_editor_init_error">錯誤：資料不適用於此
+        編輯器</string>
+    <string name="info_no_dumps">沒有傾印檔。
+        請先讀取標籤並儲存傾印</string>
+    <string name="info_invalid_range">對應範圍錯誤</string>
+    <string name="info_mapping_sector_out_of_range">對應範圍錯誤：
+        磁區超出範圍。</string>
+    <string name="info_no_key_found">在所選金鑰檔案中找不到有效金鑰</string>
+    <string name="info_data_location_not_set">錯誤：未指定區塊或磁區</string>
+    <string name="info_sector_out_of_range">錯誤：磁區超出範圍</string>
+    <string name="info_block_out_of_range">錯誤：區塊超出範圍</string>
+    <string name="info_not_hex_data">錯誤：資料必須為十六進位
+        (0-9 及 A-F)</string>
+    <string name="info_not_bin_data">錯誤：資料必須為二進位
+        (0/1，位數為 8 的倍數)</string>
+    <string name="info_not_16_byte">錯誤：資料必須為 16 位元組
+        (32 個字元)</string>
+    <string name="info_is_not_vb">錯誤：此非數值區塊。</string>
+    <string name="info_block_not_in_sector">錯誤：此磁區不包含
+        指定編號的區塊。</string>
+    <string name="info_error_writing_block">錯誤：區塊為唯讀
+        或無法以金鑰檔案中的金鑰寫入</string>
+    <string name="info_error_writing_value_block">錯誤：不是數值區塊、
+          權限不足或數值不正確</string>
+    <string name="info_write_successful">資料寫入成功</string>
+    <string name="info_none_key_valid_for_reading">錯誤：沒有金鑰
+        可用於讀取</string>
+    <string name="info_not_supported_now">此版本尚不支援此功能。
+        (未來版本可能會加入&#8230;)</string>
+    <string name="info_valid_keys_no_keys">錯誤：至少需要
+        一組金鑰</string>
+    <string name="info_valid_keys_not_hex">錯誤：部分金鑰包含
+        無效資料 (非十六進位)</string>
+    <string name="info_valid_keys_not_6_byte">錯誤：部分金鑰
+        不是 6 位元組 (12 個字元)</string>
+    <string name="info_invalid_file_name">錯誤：檔案名稱無效</string>
+    <string name="info_save_successful">資料儲存成功</string>
+    <string name="info_save_error">錯誤：儲存資料時發生錯誤</string>
+    <string name="info_file_already_exists">錯誤：檔案已存在</string>
+    <string name="info_tag_too_small">錯誤：標籤容量不足
+        (磁區超出範圍)</string>
+    <string name="info_write_error">錯誤：寫入時發生錯誤。
+        (這可能很嚴重。)</string>
+    <string name="info_tag_lost_check_dump">錯誤：檢查傾印時標籤斷線</string>
+    <string name="info_nothing_to_write">沒有需要寫入的內容</string>
+    <string name="info_no_int_to_encode">錯誤：沒有可編碼的整數</string>
+    <string name="info_addr_not_hex_byte">錯誤：位址不是有效的十六進位位元組
+        (0-9、A-F，2 個字元)</string>
+    <string name="info_copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="info_invalid_int">不是有效的整數</string>
+    <string name="info_ac_not_hex">錯誤：存取條件不是
+        十六進位 (0-9、A-F)</string>
+    <string name="info_ac_not_3_byte">錯誤：存取條件
+        必須為 3 位元組 (6 個字元)</string>
+    <string name="info_file_to_big">錯誤：檔案過大 (記憶體不足)</string>
+    <string name="info_to_many_keys">錯誤：金鑰過多 (記憶體不足)</string>
+    <string name="info_ac_format_error">錯誤：存取條件無效</string>
+    <string name="info_ac_reset_keyb_readable">金鑰 B 可讀取。
+        \n已更新資料區塊的存取條件。</string>
+    <string name="info_ac_reset_keyb_not_readable">金鑰 B 無法讀取。
+        \n已更新資料區塊的存取條件。</string>
+    <string name="info_strange_error">錯誤：發生不明錯誤&#8230;
+        且原因不明 :(\n請至專案頁面回報此問題</string>
+    <string name="info_key_map_error">錯誤：與標籤的連線中斷</string>
+    <string name="info_block0_missing">錯誤：找不到製造商區塊
+        (區塊 0)</string>
+    <string name="info_not_vb">錯誤：所選區塊不是數值區塊</string>
+    <string name="info_value_too_big">錯誤：數值過大</string>
+    <string name="info_value_too_small">錯誤：數值過小</string>
+    <string name="info_bcc_not_valid">錯誤：區塊 0 的 BCC 無效</string>
+    <string name="info_invalid_uid_length">錯誤：UID 長度無效</string>
+    <string name="info_sector_count_error">錯誤：磁區數量必須介於 1 到 40 之間</string>
+    <string name="info_share_error">錯誤：分享檔案失敗</string>
+    <string name="info_retry_authentication_count_error">錯誤：重試次數必須介於
+        1 到 1000 之間</string>
+    <string name="info_mapping_no_keyfile_selected">錯誤：未選擇任何金鑰檔案</string>
+    <string name="info_mapping_no_keyfile_found">錯誤：找不到任何金鑰檔案</string>
+    <string name="info_rest_of_block_0_length">錯誤：區塊 0 其餘部分的
+        長度不正確</string>
+    <string name="info_incorrect_key">錯誤：金鑰不正確</string>
+    <string name="info_file_exported">檔案已匯出</string>
+    <string name="info_file_imported">檔案已匯入</string>
+    <string name="info_convert_error">錯誤：無法轉換</string>
+    <string name="info_incomplete_dump">錯誤：傾印不完整或大小超出預期</string>
+    <string name="info_error_reading_file">錯誤：無法讀取檔案</string>
+    <string name="info_random_uid">已產生隨機 UID</string>
+    <string name="info_invalid_key_file">錯誤：金鑰檔案無效</string>
+    <string name="info_backup_created">已建立備份</string>
+    <string name="info_backup_error">建立完整備份時發生錯誤</string>
+    <string name="info_irreversible_acs">警告：存取條件將無法復原</string>
+    <string name="info_std_key_overwrite">錯誤：標準金鑰檔案無法被覆寫</string>
+    <string name="info_staging_equal_destination">錯誤：暫存區塊與目標區塊不能相同</string>
+    <string name="info_staging_sector_trailer_block0">錯誤：暫存區塊不能是
+        磁區尾端或製造商區塊</string>
+    <string name="info_destination_sector_trailer_block0">錯誤：目標區塊不能是
+        磁區尾端或製造商區塊</string>
+    <string name="info_no_key_for_staging">錯誤：找不到暫存區塊的金鑰</string>
+    <string name="info_no_key_for_destination">錯誤：找不到目標區塊的金鑰</string>
+    <string name="info_no_write_key_for_staging">錯誤：找不到具有寫入權限的
+        暫存區塊金鑰</string>
+    <string name="info_no_restore_staging">錯誤：暫存區塊沒有還原權限</string>
+
+    <!-- Dialog messages -->
+    <string name="dialog_nfc_not_enabled">NFC 介面卡尚未啟用。
+        請前往系統設定啟用 NFC。</string>
+    <string name="dialog_nfc_not_enabled_title">NFC 未啟用</string>
+    <string name="dialog_no_mfc_support_device_title">不支援 MIFARE Classic</string>
+    <string name="dialog_no_mfc_support_device">
+        <![CDATA[
+        此裝置的硬體不支援 MIFARE Classic！只能顯示 UID 及部分
+        一般資訊，無法執行進一步的 I/O 操作。
+        <br /><br />已知不支援 MIFARE Classic 的裝置清單請參閱
+        <a href="https://github.com/ikarus23/MifareClassicTool/blob/master/INCOMPATIBLE_DEVICES.md">GitHub</a>。
+        如果清單中沒有列出此裝置，請寄
+        <a href="mailto:fooblubb@gmail.com">Email 給開發者</a>。
+        <br /><br />如果裝置支援 USB-OTG，可嘗試連接外接 NFC 讀卡機。
+        MIFARE Classic Tool 能搭配 <i>External NFC</i> App 使用，該 App
+        支援多款 USB NFC 讀卡機，但可能會有部分功能限制。
+        ]]>
+        </string>
+    <string name="dialog_no_mfc_support_tag_title">不是 MIFARE Classic 標籤</string>
+    <string name="dialog_no_mfc_support_tag">
+        <![CDATA[
+        此標籤與 MIFARE Classic 技術不相容！
+        請注意，此 App 僅適用於 MIFARE Classic 標籤！
+        <br /><br /><b>請使用其他標籤。</b>
+        <br /><br /><small>(備註：極少數情況下，讀卡機範圍內有多張標籤
+        或異常的 ATQA+SAK 值可能導致此訊息誤判。)</small>
+        ]]>
+        </string>
+    <string name="dialog_save_dump_title">儲存傾印</string>
+    <string name="dialog_save_dump">請輸入傾印檔的檔案名稱：</string>
+    <string name="dialog_mapping_range_title">選擇範圍</string>
+    <string name="dialog_mapping_range">請選擇金鑰對應的磁區範圍
+        \n(0 代表第一個磁區)：</string>
+    <string name="dialog_sector_trailer_warning_title">正在寫入
+        磁區尾端</string>
+    <string name="dialog_sector_trailer_warning">即將寫入磁區尾端。
+        如果存取條件本身已標記為唯讀，此變更將無法復原。
+        寫入錯誤的資料可能會對標籤造成無法修復的損壞。</string>
+    <string name="dialog_save_keys_title">儲存金鑰檔案</string>
+    <string name="dialog_save_keys">請輸入金鑰檔案的檔案名稱：</string>
+    <string name="dialog_new_file_title">新增檔案</string>
+    <string name="dialog_new_file">請輸入新檔案的檔案名稱：</string>
+    <string name="dialog_first_run_title">警告注意事項</string>
+    <string name="dialog_first_run">此應用程式適用於
+        至少對 MIFARE Classic 技術有基本認識的使用者。
+        功能為基礎且底層的操作，因此幾乎所有的資料輸入與輸出
+        都使用十六進位格式。
+        操作時請務必瞭解自己在做什麼，例如寫入資料到標籤。
+        將錯誤的資料寫入特定區塊可能會對標籤造成無法修復的損壞。
+        \n\n<b>如需更多說明，請參閱「說明與資訊」章節。</b></string>
+    <string name="dialog_write_issues_title">寫入問題</string>
+    <string name="dialog_write_issues">偵測到影響寫入的問題。
+        請檢查以下完整清單！</string>
+    <string name="dialog_tools_menu_title">可用工具</string>
+    <string name="dialog_wait_write_tag_title">正在寫入&#8230;</string>
+    <string name="dialog_wait_write_tag">正在寫入標籤&#8230;\n(請勿移開標籤)</string>
+    <string name="dialog_share_title">傳送檔案至…</string>
+    <string name="dialog_block0_writing_title">寫入製造商區塊</string>
+    <string name="dialog_block0_writing">無法對原版 MIFARE Classic 標籤的
+        磁區 0 第一個區塊執行寫入。
+        \n\n請確認使用的是支援寫入製造商區塊的「Magic Tag」
+        (第 2 代/gen2)。
+        \n\n部分標籤的區塊 0 中，UID 後方的數值代表 BCC、
+        SAK 和 ATQA。請確保這些數值正確。寫入錯誤的資料
+        到區塊 0 可能會損壞標籤。
+
+        \n\n<b>如需更多資訊，請參閱「說明與資訊」中的
+        「寫入標籤」章節。</b></string>
+    <string name="dialog_static_ac_title">使用固定存取條件</string>
+    <string name="dialog_static_ac"><b>將傾印中所有存取條件取代為
+        所選的存取條件。</b>
+        \n\n當傾印包含對標籤永久生效的存取條件時，此功能很實用。
+        如果讀卡機不檢查存取條件，可使用自訂的條件
+        讓標籤可重複使用。
+        \n\n<b>警告：寫入錯誤的資料可能會對標籤
+        造成無法修復的損壞。</b></string>
+    <string name="dialog_choose_ac_title">選擇存取條件</string>
+    <string name="dialog_write_sectors_title">寫入磁區</string>
+    <string name="dialog_write_sectors">請選擇要寫入的磁區：</string>
+    <string name="dialog_about_mct_title">關於 MCT</string>
+    <string name="dialog_about_mct">
+        <![CDATA[
+        <b>MIFARE Classic Tool (MCT)<br /><br />
+        &#8226; 版本：%1$s<br />
+        &#8226; 授權條款：
+        <a href="https://www.gnu.org/licenses/gpl-3.0.txt">GPLv3</a><br />
+        &#8226; 專案頁面：
+        <a href="https://github.com/ikarus23/MifareClassicTool">MCT
+        on GitHub</a><br />
+        &#8226; 評價此 App：
+        <a href="market://details?id=de.syss.MifareClassicTool">透過
+        Google Play</a><br />
+        &#8226; 贊助：
+        <a href="market://details?id=de.syss.MifareClassicToolDonate">
+        Google Play</a></b><br /><br />
+        實用資訊：<br />
+        &#8226; <a href="https://github.com/ikarus23/MifareClassicTool/issues">問題追蹤</a><br />
+        &#8226; <a href="https://raw.github.com/ikarus23/MifareClassicTool/master/CHANGELOG.txt">更新日誌
+        / 版本歷史</a><br />
+        &#8226; <a href="http://publications.icaria.de/mct/">文件、
+        APK 等</a><br />
+        &#8226; <a href="http://www.proxmark.org/forum/viewtopic.php?id=1535">Proxmark
+        論壇討論串</a><br /><br />
+        MIFARE&reg; 為 NXP Semiconductors 的註冊商標。
+        ]]>
+        </string>
+    <string name="dialog_auto_reconnect_title">自動重新連線</string>
+    <string name="dialog_auto_reconnect">當金鑰對應過程中標籤斷線
+        (因天線問題、逾時等原因)，App 會嘗試重新連線
+        (延遲 500 毫秒)，直到連線成功。
+        \n\n<b>金鑰對應過程中遇到問題時，此功能可能有所幫助。
+        但也可能導致 MCT 出現異常行為。</b>
+        \n\n此功能可能有助於解決的已知問題：\n
+        &#8226; 特殊標籤 (例如 smartMX)</string>
+    <string name="dialog_retry_authentication_title">重試驗證</string>
+    <string name="dialog_retry_authentication">驗證失敗時 (存取磁區/區塊)
+        重試 X 次。\n\n部分標籤需要此功能才能正常運作 (例如某些區塊 0
+        可寫入且有 7 位元組 UID 的標籤)。此外，此功能也有助於改善部分裝置的
+        穩定性 (例如 Google Nexus 5X 或 Huawei P10)。\n\n請注意，啟用此功能
+        可能會降低讀取、寫入甚至金鑰對應的速度。在大多數情況下，建議
+        停用此選項。</string>
+    <string name="dialog_custom_sector_count_title">自訂磁區數量</string>
+    <string name="dialog_custom_sector_count">強制使用自訂磁區數量，
+        忽略 Android 偵測到的磁區數。
+        此功能適用於具有 2K 記憶體的標籤。</string>
+    <string name="dialog_date_of_manuf_title">製造日期</string>
+    <string name="dialog_date_of_manuf">
+        <![CDATA[
+        此標籤的製造日期介於 <b>%1$s</b> 到 <b>%2$s</b> 之間
+        <br /><br />
+        (此資訊可能不正確。請參閱「說明與資訊」
+        瞭解更多。)
+        ]]>
+        </string>
+    <string name="dialog_date_of_manuf_error"><b>製造日期包含無效資料。</b>
+        \n\n製造商區塊的最後 2 個位元組應為 BCD 編碼格式
+        (僅數字，不含字母)。第一個位元組 (製造週次) 必須介於 1 到 53 之間
+        (例如 28)。第二個位元組 (製造年份) 必須介於 0 到
+        目前年份之間 (例如 12，代表 2012)。
+        \n\n此標籤可能不是原版 MIFARE Classic 標籤。</string>
+    <string name="dialog_save_conflict_title">檔案已存在</string>
+    <string name="dialog_save_conflict_dump">檔案已存在。
+        請選擇要執行的操作：
+        \n\n<b>注意：包含多個傾印的檔案 (使用「附加」建立的)
+        無法在此 App 中顯示、編輯或寫入。</b></string>
+    <string name="dialog_save_conflict_keyfile">檔案已存在。
+        請選擇要執行的操作：</string>
+    <string name="dialog_donate_title">贊助</string>
+    <string name="dialog_donate"><b>MIFARE Classic Tool 已更新！</b>
+        \n完整的
+        <a href="https://raw.github.com/ikarus23/MifareClassicTool/master/CHANGELOG.txt">更新日誌</a>
+        可在線上查閱。
+        \n\n如果新功能、修正或此 App 讓您感到滿意，
+        請考慮贊助開發者，請他喝杯啤酒吧！;)
+        \n\n\u2022 <a href="market://details?id=de.syss.MifareClassicToolDonate">取得
+        贊助版</a>
+        \n\u2022 <a href="https://github.com/ikarus23/MifareClassicTool/blob/master/README.md#mifare-classic-tool-mct">MCT
+        on GitHub / 贊助連結</a>
+    </string>
+    <string name="dialog_save_before_quitting_title">尚未儲存的變更</string>
+    <string name="dialog_save_before_quitting"><b>有尚未儲存的變更！</b>
+        \n是否要儲存這些變更？
+    </string>
+    <string name="dialog_no_nfc_support_title">不支援 NFC</string>
+    <string name="dialog_no_nfc_support">此裝置沒有 NFC 讀卡機，
+        因此無法讀取或寫入 NFC 標籤。
+        \n\n如果裝置支援 USB-OTG，可嘗試連接外接 NFC 讀卡機。
+        \n\nMIFARE Classic Tool 能搭配「External NFC」App 使用，
+        該 App 支援多款 USB NFC 讀卡機，但可能會有部分功能限制。
+    </string>
+    <string name="dialog_start_external_nfc_title">External NFC 服務</string>
+    <string name="dialog_start_external_nfc">「External NFC」的服務尚未啟動。
+        請啟用服務，以便搭配外接 NFC 讀卡機使用 MIFARE Classic Tool。
+    </string>
+    <string name="dialog_info_external_nfc_title">External NFC 服務</string>
+    <string name="dialog_info_external_nfc">此裝置沒有 NFC 讀卡機
+        或不支援 MIFARE Classic，但已安裝「External NFC」App。
+        請確認「External NFC」服務正在執行中，
+        以便搭配外接 NFC 讀卡機使用 MIFARE Classic Tool。
+    </string>
+    <string name="dialog_gen2_tags_info_title">複製 UID</string>
+    <string name="dialog_gen2_tags_info">MIFARE Classic 標籤第一個磁區的第一個區塊
+        包含 UID，且為唯讀 (無法寫入)。但有一種特殊的 MIFARE Classic 標籤
+        (「Magic Tag 第 2 代」，又稱「區塊 0 直接寫入標籤」)
+        可用一般寫入指令寫入第一個區塊 (包含 UID)。
+        此 App 能寫入此類標籤，因此可複製 UID。然而，部分特殊標籤
+        (「Magic Tag 第 1 代」) 需要特殊指令序列才能進入可寫入製造商區塊的狀態，
+        這些標籤將無法使用。</string>
+    <string name="dialog_rest_of_block_0_title">區塊 0 的其餘部分</string>
+    <string name="dialog_rest_of_block_0">MIFARE Classic 標籤通常只能以區塊為單位寫入。
+        UID 由區塊 0 的前幾個位元組表示。若要變更 UID，
+        必須寫入完整的區塊 0。「區塊 0 的其餘部分」是
+        接在 UID 之後、用來組成完整區塊的位元組資料。</string>
+    <string name="dialog_key_for_block_0_title">區塊 0 的金鑰</string>
+    <string name="dialog_key_for_block_0">要寫入區塊 0 (包含 UID 的區塊)，
+        需要具有寫入權限的對應金鑰。對於空白或出廠格式化的標籤，
+        此金鑰為金鑰 A，數值為「FFFFFFFFFFFF」。</string>
+    <string name="dialog_auto_calc_sak_atqa_title">計算 SAK 和 ATQA</string>
+    <string name="dialog_auto_calc_sak_atqa">在某些第 2 代 Magic Tag 上，區塊 0 中 UID
+        (可能還有 BCC) 後方的數值代表 SAK 和 ATQA。
+        \n\n啟用此選項後會自動產生這些數值。若未啟用，
+        將使用「區塊 0 的其餘部分」中填入的數值。</string>
+    <string name="dialog_block0_data_warning_title">區塊 0 資料檢查</string>
+    <string name="dialog_block0_data_warning">即將寫入資料到區塊 0，
+        但資料可能無效。
+        \n\n在某些第 2 代標籤上，區塊 0 中的位元組可控制 SAK 和 ATQA 值。
+        寫入錯誤的數值可能導致標籤 (軟體) 損壞，但也有些標籤會忽略錯誤的值。
+        此外，UID 應遵循 ISO 14443 規範。
+        \n\n此區塊 0 檢查會嘗試確保寫入的資料符合
+        NXP 的規格。
+        \n\n請自行承擔風險！</string>
+
+    <!-- Hints -->
+    <string name="hint_hex_16_byte">十六進位，16 位元組 (例如 0A4F&#8230;)</string>
+    <string name="hint_hex_3_byte">十六進位，3 位元組</string>
+    <string name="hint_hex_4_byte">十六進位，4 位元組</string>
+    <string name="hint_hex_4_7_10_byte">十六進位，4/7/10 位元組</string>
+    <string name="hint_hex_00">00</string>
+    <string name="hint_int_423">例如 423</string>
+    <string name="hint_custom_sector_count">例如 16 代表 1K</string>
+    <string name="hint_custom_retry_authentication_count">重試次數</string>
+    <string name="hint_key">十六進位，每行 6 位元組</string>
+
+</resources>

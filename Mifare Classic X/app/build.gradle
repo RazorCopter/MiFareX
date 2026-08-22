@@ -1,0 +1,110 @@
+plugins {
+    id 'com.android.application' version '9.2.0'
+    id 'org.jetbrains.kotlin.android' version '2.2.10'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.2.10'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '2.2.10'
+    id 'org.jetbrains.kotlin.kapt' version '2.2.10'
+}
+
+android {
+    compileSdk 35
+    namespace "de.syss.MifareClassicTool"
+
+    defaultConfig {
+        applicationId "de.syss.MifareClassicX"
+        minSdk 24
+        targetSdk 35
+        versionCode 71
+        versionName '5.0.0-alpha01'
+    }
+
+    androidResources {
+        generateLocaleConfig true
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+kapt {
+    correctErrorTypes = true
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
+dependencies {
+    // === Legacy (untouched) ===
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.preference:preference:1.2.1"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+
+    // === Kotlin ===
+    implementation "androidx.core:core-ktx:1.16.0"
+
+    // === Jetpack Compose (BOM) ===
+    def composeBom = platform("androidx.compose:compose-bom:2025.06.01")
+    implementation composeBom
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-tooling-preview"
+    implementation "androidx.compose.material:material-icons-extended"
+    implementation "androidx.compose.animation:animation"
+    debugImplementation "androidx.compose.ui:ui-tooling"
+
+    // === Activity Compose ===
+    implementation "androidx.activity:activity-compose:1.10.1"
+
+    // === Navigation Compose ===
+    implementation "androidx.navigation:navigation-compose:2.9.0"
+
+    // === Lifecycle & ViewModel ===
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:2.9.1"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1"
+
+    // === Room Database ===
+    implementation "androidx.room:room-runtime:2.7.1"
+    implementation "androidx.room:room-ktx:2.7.1"
+    kapt "androidx.room:room-compiler:2.7.1"
+
+    // === Kotlinx Serialization (JSON import/export) ===
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1"
+
+    // === Coil (Image loading for Vendor icons) ===
+    implementation "io.coil-kt:coil-compose:2.7.0"
+
+    // === Biometric authentication ===
+    implementation "androidx.biometric:biometric:1.1.0"
+
+    // === Kotlinx Coroutines ===
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
+}

@@ -1,0 +1,10 @@
+ * Added feature to write to Value Blocks if only
+   decrement/transfer/restore permissions are available
+   (Thanks @IamMusavaRibica).
+ * Use keys from dump when writing a dump first (speed-up).
+ * Add key file with common keys for hotel cards
+   (Thanks to @WillCaruana).
+ * Added access to import/export from file chooser.
+ * Added more well known keys to the extended key file.
+   (extended-std.keys file will be updated automatically.)
+ * Minor bug fixes.

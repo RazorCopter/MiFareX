@@ -1,0 +1,179 @@
+package de.syss.MifareClassicTool.ui.adminmode
+
+import android.app.Application
+import android.net.Uri
+import androidx.compose.runtime.*
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import de.syss.MifareClassicTool.data.model.*
+import de.syss.MifareClassicTool.data.repository.VendorRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.UUID
+
+/**
+ * ViewModel for the VendorEditorScreen.
+ * Manages form state for creating or editing a Vendor.
+ */
+class VendorEditorViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository = VendorRepository(application)
+
+    // Form state
+    var name by mutableStateOf("")
+    var subtitle by mutableStateOf("")
+    var notes by mutableStateOf("")
+    var category by mutableStateOf(VendorCategory.CUSTOM)
+    var tagType by mutableStateOf(TagType.MIFARE_CLASSIC_1K)
+    var iconUri by mutableStateOf<String?>(null)
+    var sectorKeys by mutableStateOf(listOf<SectorKey>())
+    var writeBlocks by mutableStateOf(listOf<WriteBlockEntry>())
+
+    var isLoading by mutableStateOf(false)
+        private set
+    var isSaved by mutableStateOf(false)
+        private set
+    var isDeleted by mutableStateOf(false)
+        private set
+
+    private var editingVendorId: String? = null
+
+    /**
+     * Load existing vendor data for editing.
+     */
+    fun loadVendor(vendorId: String) {
+        viewModelScope.launch {
+            isLoading = true
+            val vendor = repository.getVendorById(vendorId)
+            if (vendor != null) {
+                editingVendorId = vendor.id
+                name = vendor.name
+                subtitle = vendor.subtitle ?: ""
+                notes = vendor.notes ?: ""
+                category = vendor.category
+                tagType = vendor.tagType
+                iconUri = vendor.iconUri
+                sectorKeys = repository.parseKeys(vendor)
+                writeBlocks = repository.parsePayload(vendor).blocks
+            }
+            isLoading = false
+        }
+    }
+
+    /**
+     * Copy the image at [sourceUri] (from the SAF picker) to internal storage so
+     * the path remains valid after the picker is dismissed. Updates [iconUri].
+     */
+    fun onIconPicked(sourceUri: Uri) {
+        viewModelScope.launch {
+            val ctx = getApplication<Application>()
+            val iconsDir = File(ctx.filesDir, "vendor_icons").also { it.mkdirs() }
+            val targetFile = File(iconsDir, "${System.currentTimeMillis()}.jpg")
+            // Copy on IO — only update state after confirmed success
+            val copied = withContext(Dispatchers.IO) {
+                runCatching {
+                    ctx.contentResolver.openInputStream(sourceUri)?.use { input ->
+                        targetFile.outputStream().use { output -> input.copyTo(output) }
+                    } ?: return@runCatching false
+                    true
+                }.getOrDefault(false)
+            }
+            if (copied) {
+                // Delete old icon only after new one is confirmed written
+                val old = iconUri
+                if (old != null) withContext(Dispatchers.IO) { runCatching { File(old).delete() } }
+                // mutableStateOf write always on main thread (launch default dispatcher = Main)
+                iconUri = targetFile.absolutePath
+            }
+        }
+    }
+
+    /** Remove the current icon (reverts to category icon). */
+    fun removeIcon() {
+        val old = iconUri
+        iconUri = null
+        if (old != null) viewModelScope.launch(Dispatchers.IO) { runCatching { File(old).delete() } }
+    }
+
+    /**
+     * Add a new sector key entry. Multiple entries for the same sector are allowed
+     * (NfcBridge will try each in sequence until one authenticates).
+     */
+    fun addSectorKey(sector: Int, keyA: String?, keyB: String?) {
+        val key = SectorKey(sector, keyA?.uppercase(), keyB?.uppercase())
+        sectorKeys = sectorKeys + key
+    }
+
+    /**
+     * Remove a sector key entry by its position in the list.
+     */
+    fun removeSectorKeyAt(index: Int) {
+        sectorKeys = sectorKeys.filterIndexed { i, _ -> i != index }
+    }
+
+    /**
+     * Add a new block write entry.
+     */
+    fun addWriteBlock(sector: Int, block: Int, data: String) {
+        try {
+            val entry = WriteBlockEntry(sector, block, data.uppercase())
+            writeBlocks = writeBlocks + entry
+        } catch (e: IllegalArgumentException) {
+            // Validation failed
+        }
+    }
+
+    /**
+     * Remove a block write entry by index.
+     */
+    fun removeWriteBlock(index: Int) {
+        writeBlocks = writeBlocks.filterIndexed { i, _ -> i != index }
+    }
+
+    /**
+     * Save the vendor (create or update).
+     */
+    fun saveVendor() {
+        if (name.isBlank()) return
+
+        viewModelScope.launch {
+            isLoading = true
+
+            val payload = PayloadConfig(
+                writeMode = WriteMode.SELECTIVE_BLOCKS,
+                blocks = writeBlocks
+            )
+
+            val entity = VendorEntity(
+                id = editingVendorId ?: UUID.randomUUID().toString(),
+                name = name.trim(),
+                subtitle = subtitle.trim().ifBlank { null },
+                notes = notes.trim().ifBlank { null },
+                iconUri = iconUri,
+                category = category,
+                tagType = tagType,
+                keysJson = repository.serializeKeys(sectorKeys),
+                payloadJson = repository.serializePayload(payload)
+            )
+
+            repository.saveVendor(entity)
+            isLoading = false
+            isSaved = true
+        }
+    }
+
+    fun deleteVendor() {
+        val id = editingVendorId ?: return
+        viewModelScope.launch {
+            isLoading = true
+            repository.deleteVendor(id)
+            // Clean up icon file from internal storage
+            val icon = iconUri
+            if (icon != null) withContext(Dispatchers.IO) { runCatching { File(icon).delete() } }
+            isLoading = false
+            isDeleted = true
+        }
+    }
+}

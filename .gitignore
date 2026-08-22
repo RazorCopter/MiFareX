@@ -1,0 +1,32 @@
+# my stuff
+Mifare Classic Tool/doc/
+
+# Andoird Studio stuff
+Mifare Classic Tool/**/*.iml
+Mifare Classic Tool/.gradle
+Mifare Classic Tool/local.properties
+Mifare Classic Tool/.idea/
+Mifare Classic Tool/**/build
+Mifare Classic Tool/app/release
+
+# built application files
+*.apk
+*.ap_
+
+# files for the dex VM
+*.dex
+
+# Java class files
+*.class
+
+# generated files
+**/bin
+**/gen
+
+# OS specific
+**/.DS_Store
+
+.idea
+.vscode
+build
+*.jar

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- NFC chip body -->
+    <path
+        android:fillColor="#00D4FF"
+        android:pathData="M28,38 Q28,32 34,32 L74,32 Q80,32 80,38 L80,70 Q80,76 74,76 L34,76 Q28,76 28,70 Z" />
+
+    <!-- Chip inner detail (darker inset) -->
+    <path
+        android:fillColor="#0D1B2A"
+        android:pathData="M36,42 Q36,38 40,38 L68,38 Q72,38 72,42 L72,66 Q72,70 68,70 L40,70 Q36,70 36,66 Z" />
+
+    <!-- NFC antenna arc left -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M22,31 Q14,54 22,77" />
+
+    <!-- NFC antenna arc left outer -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M16,25 Q4,54 16,83" />
+
+    <!-- NFC antenna arc right -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M86,31 Q94,54 86,77" />
+
+    <!-- NFC antenna arc right outer -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M92,25 Q104,54 92,83" />
+
+    <!-- X - stroke 1 (top-left to bottom-right) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M44,46 L64,62" />
+
+    <!-- X - stroke 2 (top-right to bottom-left) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00D4FF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M64,46 L44,62" />
+
+</vector>
