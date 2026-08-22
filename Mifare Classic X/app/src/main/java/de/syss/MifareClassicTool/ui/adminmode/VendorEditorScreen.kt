@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import de.syss.MifareClassicTool.ui.components.HexVisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -351,199 +352,380 @@ private fun SectionHeader(title: String) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
     SectionHeader("Chiavi per Settore (Keys)")
 
-    // Existing keys (index-based for multi-key support per sector)
+    // Existing keys with SwipeToDismiss
     viewModel.sectorKeys.forEachIndexed { index, key ->
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Settore ${key.sector}  ·  #${index + 1}",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = {
+                if (it == SwipeToDismissBoxValue.EndToStart) {
+                    viewModel.removeSectorKeyAt(index)
+                    true
+                } else false
+            }
+        )
+        SwipeToDismissBox(
+            state = dismissState,
+            enableDismissFromStartToEnd = false,
+            backgroundContent = {
+                val color by animateColorAsState(
+                    when (dismissState.targetValue) {
+                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                        else -> Color.Transparent
+                    }
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 4.dp)
+                        .background(color, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Rimuovi",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
                     )
-                    key.keyA?.let {
-                        Text("Key A: $it", style = MaterialTheme.typography.bodySmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-                    }
-                    key.keyB?.let {
-                        Text("Key B: $it", style = MaterialTheme.typography.bodySmall,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-                    }
                 }
-                IconButton(onClick = { viewModel.removeSectorKeyAt(index) }) {
-                    Icon(Icons.Filled.Delete, "Rimuovi", tint = MaterialTheme.colorScheme.error)
+            }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Settore ${key.sector}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            key.label?.let { lbl ->
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        lbl,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        key.keyB?.let {
+                            Text("Key B: $it", style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                    }
                 }
             }
         }
     }
 
-    // Add key form
-    var newKeySector by remember { mutableStateOf("") }
-    var newKeyA by remember { mutableStateOf("") }
-    var newKeyB by remember { mutableStateOf("") }
+    var showAddKeySheet by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
+    OutlinedButton(
+        onClick = { showAddKeySheet = true },
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val hexRegex = remember { Regex("^[0-9A-Fa-f]*$") }
-            val keyAError = newKeyA.isNotBlank() && (newKeyA.length != 12 || !newKeyA.matches(hexRegex))
-            val keyBError = newKeyB.isNotBlank() && (newKeyB.length != 12 || !newKeyB.matches(hexRegex))
+        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Aggiungi Chiave")
+    }
 
-            OutlinedTextField(
-                value = newKeySector,
-                onValueChange = { newKeySector = it },
-                label = { Text("Settore") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-            OutlinedTextField(
-                value = newKeyA,
-                onValueChange = { if (it.length <= 12) newKeyA = it.uppercase() },
-                label = { Text("Key A (12 hex)") },
-                placeholder = { Text("FFFFFFFFFFFF") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = keyAError,
-                supportingText = if (keyAError) {
-                    { Text("Deve essere esattamente 12 caratteri hex") }
-                } else null
-            )
-            OutlinedTextField(
-                value = newKeyB,
-                onValueChange = { if (it.length <= 12) newKeyB = it.uppercase() },
-                label = { Text("Key B (12 hex)") },
-                placeholder = { Text("FFFFFFFFFFFF") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = keyBError,
-                supportingText = if (keyBError) {
-                    { Text("Deve essere esattamente 12 caratteri hex") }
-                } else null
-            )
-            Button(
-                onClick = {
-                    val sector = newKeySector.toIntOrNull() ?: return@Button
-                    viewModel.addSectorKey(
-                        sector,
-                        newKeyA.ifBlank { null },
-                        newKeyB.ifBlank { null }
-                    )
-                    newKeySector = ""; newKeyA = ""; newKeyB = ""
-                },
-                modifier = Modifier.align(Alignment.End),
-                enabled = newKeySector.isNotBlank()
-                        && (newKeyA.isNotBlank() || newKeyB.isNotBlank())
-                        && !keyAError && !keyBError
+    if (showAddKeySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddKeySheet = false }
+        ) {
+            var newKeySector by remember { mutableStateOf("") }
+            var newKeyB by remember { mutableStateOf("") }
+            var newKeyLabel by remember { mutableStateOf("") }
+
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(bottom = 32.dp), // Extra padding for navigation bar
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Aggiungi Chiave")
+                Text(
+                    "Nuova Chiave",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                val hexRegex = remember { Regex("^[0-9A-Fa-f]*$") }
+                val parsedSector = newKeySector.toIntOrNull()
+                val sectorError = newKeySector.isNotBlank() && (parsedSector == null || parsedSector !in 0..39)
+                val keyBError = newKeyB.isNotBlank() && (newKeyB.length != 12 || !newKeyB.matches(hexRegex))
+
+                OutlinedTextField(
+                    value = newKeyLabel,
+                    onValueChange = { newKeyLabel = it },
+                    label = { Text("Descrizione") },
+                    placeholder = { Text("es. Tessera Blu, Card Mario…") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newKeySector,
+                        onValueChange = { newKeySector = it },
+                        label = { Text("Settore") },
+                        placeholder = { Text("0") },
+                        isError = sectorError,
+                        supportingText = {
+                            if (sectorError) {
+                                Text("Deve essere 0-39", color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("0-based (0 = 1° settore)")
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = newKeyB,
+                        onValueChange = { 
+                            val stripped = it.replace(" ", "").uppercase()
+                            if (stripped.length <= 12 && stripped.matches(hexRegex)) newKeyB = stripped 
+                        },
+                        label = { Text("Key B (12 hex)") },
+                        placeholder = { Text("FFFFFFFFFFFF") },
+                        modifier = Modifier.weight(2f),
+                        singleLine = true,
+                        isError = keyBError,
+                        visualTransformation = HexVisualTransformation(),
+                        supportingText = if (keyBError) {
+                            { Text("Deve essere esattamente 12 caratteri hex") }
+                        } else null
+                    )
+                }
+                Button(
+                    onClick = {
+                        val sector = newKeySector.toIntOrNull() ?: return@Button
+                        viewModel.addSectorKey(
+                            sector,
+                            null,  // No Key A for write-only workflow
+                            newKeyB.ifBlank { null },
+                            newKeyLabel.ifBlank { null }
+                        )
+                        showAddKeySheet = false
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = newKeySector.isNotBlank()
+                            && !sectorError
+                            && newKeyB.isNotBlank()
+                            && !keyBError
+                ) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Aggiungi")
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PayloadBlocksSection(viewModel: VendorEditorViewModel) {
     SectionHeader("Blocchi da Scrivere (Payload)")
 
-    // Existing blocks
+    // Existing blocks with SwipeToDismiss
     viewModel.writeBlocks.forEachIndexed { index, block ->
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "S${block.sector} B${block.block}",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        block.data,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = {
+                if (it == SwipeToDismissBoxValue.EndToStart) {
+                    viewModel.removeWriteBlock(index)
+                    true
+                } else false
+            }
+        )
+        SwipeToDismissBox(
+            state = dismissState,
+            enableDismissFromStartToEnd = false,
+            backgroundContent = {
+                val color by animateColorAsState(
+                    when (dismissState.targetValue) {
+                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                        else -> Color.Transparent
+                    }
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 4.dp)
+                        .background(color, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Rimuovi",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
-                IconButton(onClick = { viewModel.removeWriteBlock(index) }) {
-                    Icon(Icons.Filled.Delete, "Rimuovi", tint = MaterialTheme.colorScheme.error)
+            }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "S${block.sector} B${block.block}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            block.data,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
                 }
             }
         }
     }
 
-    // Add block form
-    var newBlockSector by remember { mutableStateOf("") }
-    var newBlockBlock by remember { mutableStateOf("") }
-    var newBlockData by remember { mutableStateOf("") }
+    var showAddBlockSheet by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
-        )
+    OutlinedButton(
+        onClick = { showAddBlockSheet = true },
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = newBlockSector,
-                    onValueChange = { newBlockSector = it },
-                    label = { Text("Settore") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = newBlockBlock,
-                    onValueChange = { newBlockBlock = it },
-                    label = { Text("Blocco") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-            OutlinedTextField(
-                value = newBlockData,
-                onValueChange = { newBlockData = it.uppercase() },
-                label = { Text("Dati (32 hex chars)") },
-                placeholder = { Text("00000000000000000000000000000000") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Button(
-                onClick = {
-                    val sector = newBlockSector.toIntOrNull() ?: return@Button
-                    val block = newBlockBlock.toIntOrNull() ?: return@Button
-                    viewModel.addWriteBlock(sector, block, newBlockData)
-                    newBlockSector = ""; newBlockBlock = ""; newBlockData = ""
-                },
-                modifier = Modifier.align(Alignment.End),
-                enabled = newBlockSector.isNotBlank() && newBlockBlock.isNotBlank() && newBlockData.length == 32
+        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Aggiungi Blocco")
+    }
+
+    if (showAddBlockSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAddBlockSheet = false }
+        ) {
+            var newBlockSector by remember { mutableStateOf("") }
+            var newBlockBlock by remember { mutableStateOf("") }
+            var newBlockData by remember { mutableStateOf("") }
+
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Aggiungi Blocco")
+                Text(
+                    "Nuovo Blocco Payload",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                val hexRegex = remember { Regex("^[0-9A-Fa-f]*$") }
+                val parsedSector = newBlockSector.toIntOrNull()
+                val sectorError = newBlockSector.isNotBlank() && (parsedSector == null || parsedSector !in 0..39)
+                val parsedBlock = newBlockBlock.toIntOrNull()
+                val blockError = newBlockBlock.isNotBlank() && (parsedBlock == null || parsedBlock !in 0..2)
+                val dataError = newBlockData.isNotBlank() && (newBlockData.length != 32 || !newBlockData.matches(hexRegex))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = newBlockSector,
+                        onValueChange = { newBlockSector = it },
+                        label = { Text("Settore") },
+                        placeholder = { Text("0") },
+                        isError = sectorError,
+                        supportingText = {
+                            if (sectorError) {
+                                Text("Deve essere 0-39", color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("0-based (0 = 1° settore)")
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = newBlockBlock,
+                        onValueChange = { if (it.length <= 1) newBlockBlock = it },
+                        label = { Text("Blocco (0, 1, 2)") },
+                        placeholder = { Text("0, 1, 2") },
+                        isError = blockError,
+                        supportingText = {
+                            if (blockError) {
+                                Text("Solo 0, 1, 2! (3 è il Trailer)", color = MaterialTheme.colorScheme.error)
+                            } else {
+                                Text("Solo blocchi dati 0, 1, 2")
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+                OutlinedTextField(
+                    value = newBlockData,
+                    onValueChange = { 
+                        val stripped = it.replace(" ", "").uppercase()
+                        if (stripped.length <= 32 && stripped.matches(hexRegex)) newBlockData = stripped 
+                    },
+                    label = { Text("Dati (32 hex chars)") },
+                    placeholder = { Text("00000000000000000000000000000000") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = dataError,
+                    visualTransformation = HexVisualTransformation(),
+                    supportingText = if (dataError) {
+                        { Text("Deve essere esattamente 32 caratteri hex (0-9, A-F)") }
+                    } else {
+                        { Text("${newBlockData.length}/32 caratteri") }
+                    }
+                )
+                Button(
+                    onClick = {
+                        val sector = newBlockSector.toIntOrNull() ?: return@Button
+                        val block = newBlockBlock.toIntOrNull() ?: return@Button
+                        if (block in 0..2) {
+                            viewModel.addWriteBlock(sector, block, newBlockData)
+                            showAddBlockSheet = false
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.End),
+                    enabled = newBlockSector.isNotBlank()
+                            && !sectorError
+                            && newBlockBlock.isNotBlank()
+                            && !blockError
+                            && newBlockData.isNotBlank()
+                            && !dataError
+                ) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Aggiungi")
+                }
             }
         }
     }

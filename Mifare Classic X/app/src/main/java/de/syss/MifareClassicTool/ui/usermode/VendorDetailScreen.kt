@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,8 +48,13 @@ fun VendorDetailScreen(
     val vendorFlow = remember(vendorId) { viewModel.loadVendor(vendorId) }
     val vendor by vendorFlow.collectAsStateWithLifecycle(initialValue = null)
     val writeState by viewModel.writeState.collectAsStateWithLifecycle()
+    val testState by viewModel.testState.collectAsStateWithLifecycle()
 
     vendor?.let { v ->
+        val hasKeys = remember(v.keysJson) {
+            try { v.keysJson != "[]" && v.keysJson.isNotBlank() } catch (_: Exception) { false }
+        }
+
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -71,11 +77,13 @@ fun VendorDetailScreen(
                 VendorDetailContent(
                     vendor = v,
                     isWritable = viewModel.vendorIsWritable(v),
+                    hasKeys = hasKeys,
                     onStartWrite = { viewModel.startWriteFlow() },
+                    onStartTest = { viewModel.startTestKeys() },
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Overlay states
+                // Write overlay states
                 AnimatedVisibility(
                     visible = writeState is NfcWriteState.WaitingForTag,
                     enter = fadeIn() + slideInVertically { it },
@@ -120,6 +128,42 @@ fun VendorDetailScreen(
                         )
                     }
                 }
+
+                // Test Keys overlay states
+                AnimatedVisibility(
+                    visible = testState is NfcTestState.WaitingForTag,
+                    enter = fadeIn() + slideInVertically { it },
+                    exit = fadeOut() + slideOutVertically { it }
+                ) {
+                    NfcWaitingOverlay(
+                        vendorName = "Verifica Chiavi",
+                        onCancel = { viewModel.cancelTestKeys() }
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = testState is NfcTestState.Testing,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    val msg = (testState as? NfcTestState.Testing)?.message
+                        ?: "Verifica chiavi..."
+                    VerifyingOverlay(message = msg)
+                }
+
+                AnimatedVisibility(
+                    visible = testState is NfcTestState.Result,
+                    enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                    exit = fadeOut()
+                ) {
+                    val preflight = (testState as? NfcTestState.Result)?.preflight
+                    if (preflight != null) {
+                        TestKeysResultOverlay(
+                            preflight = preflight,
+                            onDismiss = { viewModel.resetTestState() }
+                        )
+                    }
+                }
             }
         }
     } ?: run {
@@ -137,17 +181,20 @@ fun VendorDetailScreen(
 private fun VendorDetailContent(
     vendor: VendorEntity,
     isWritable: Boolean,
+    hasKeys: Boolean,
     onStartWrite: () -> Unit,
+    onStartTest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val categoryColor = getCategoryColor(vendor.category)
+    val scrollState = rememberScrollState()
 
-    Column(modifier = modifier) {
+    Box(modifier = modifier) {
         // Scrollable info section
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ── Expandable hero banner ──────────────────────────────────
@@ -155,6 +202,9 @@ private fun VendorDetailContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
+                    .graphicsLayer {
+                        translationY = scrollState.value * 0.5f
+                    }
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -207,10 +257,24 @@ private fun VendorDetailContent(
                 }
                 InfoCard(icon = Icons.Filled.History, label = "Scritture effettuate", value = "${vendor.writeCount}")
             }
+            Spacer(modifier = Modifier.height(100.dp)) // Space for bottom bar
         }
 
-        // Pinned action button — always visible, never scrolled away
-        Surface(shadowElevation = 8.dp) {
+        // Pinned action button — glassmorphism overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.0f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+        ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
                 if (!isWritable) {
                     Surface(
@@ -237,20 +301,45 @@ private fun VendorDetailContent(
                         }
                     }
                 }
-                Button(
-                    onClick = onStartWrite,
-                    enabled = isWritable,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = categoryColor)
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        "Programma Tag",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (hasKeys) {
+                        OutlinedButton(
+                            onClick = onStartTest,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Testa Chiavi",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = onStartWrite,
+                        enabled = isWritable,
+                        modifier = Modifier
+                            .weight(if (hasKeys) 1.5f else 1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = categoryColor)
+                    ) {
+                        Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Programma Tag",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
@@ -615,3 +704,110 @@ private fun WriteResultOverlay(
 
 /** Simple data holder for 4 values (destructuring). */
 private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+/**
+ * Overlay showing the result of the test keys preflight operation.
+ */
+@Composable
+private fun TestKeysResultOverlay(
+    preflight: PreflightResult,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+    LaunchedEffect(preflight) {
+        if (preflight is PreflightResult.Ready) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            kotlinx.coroutines.delay(120)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        } else {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            kotlinx.coroutines.delay(80)
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
+    val (icon, iconColor, title, description) = when (preflight) {
+        is PreflightResult.Ready -> Quad(
+            Icons.Filled.CheckCircle,
+            Color(0xFF4CAF50),
+            "Chiavi Verificate! ✓",
+            preflightResultToUiText(preflight).second
+        )
+        else -> {
+            val (pfTitle, pfDesc) = preflightResultToUiText(preflight)
+            Quad(
+                Icons.Filled.GppBad,
+                Color(0xFFE65100),
+                pfTitle,
+                pfDesc
+            )
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (preflight is PreflightResult.Ready) {
+                    NfcRingsAnimation(
+                        color = iconColor,
+                        isWriting = false,
+                        isDone = true,
+                        size = 120.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(64.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Chiudi")
+                }
+            }
+        }
+    }
+}

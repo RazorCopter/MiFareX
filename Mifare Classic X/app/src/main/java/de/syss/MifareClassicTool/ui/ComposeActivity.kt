@@ -154,8 +154,7 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
 
     val showBottomBar = currentRoute in listOf(
         Routes.VENDOR_GRID,
-        Routes.AUTO_MODE_SCREEN,
-        Routes.EXPERT_MODE
+        Routes.AUTO_MODE_SCREEN
     ) || currentRoute?.startsWith("vendor_editor") == true
 
     Scaffold(
@@ -173,7 +172,6 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
                             Routes.AUTO_MODE -> currentRoute == Routes.AUTO_MODE_SCREEN
                             Routes.ADMIN_MODE -> currentRoute?.startsWith("vendor_editor") == true ||
                                     currentRoute == Routes.IMPORT_EXPORT
-                            Routes.EXPERT_MODE -> currentRoute == Routes.EXPERT_MODE
                             else -> false
                         }
 
@@ -184,7 +182,6 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
                                     Routes.USER_MODE -> Routes.VENDOR_GRID
                                     Routes.AUTO_MODE -> Routes.AUTO_MODE_SCREEN
                                     Routes.ADMIN_MODE -> Routes.vendorEditor()
-                                    Routes.EXPERT_MODE -> Routes.EXPERT_MODE
                                     else -> Routes.VENDOR_GRID
                                 }
                                 navController.navigate(targetRoute) {

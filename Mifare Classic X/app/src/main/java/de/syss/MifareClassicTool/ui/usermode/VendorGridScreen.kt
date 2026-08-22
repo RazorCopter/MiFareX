@@ -2,19 +2,23 @@ package de.syss.MifareClassicTool.ui.usermode
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -76,28 +80,41 @@ fun VendorGridScreen(
             val focusRequester = remember { FocusRequester() }
             AnimatedVisibility(
                 visible = viewModel.isSearchVisible,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = viewModel::updateSearch,
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .focusRequester(focusRequester),
-                    placeholder = { Text("Cerca vendor…") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.updateSearch("") }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Cancella ricerca")
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    shadowElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = viewModel::updateSearch,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        placeholder = { Text("Cerca vendor…") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.updateSearch("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Cancella ricerca")
+                                }
                             }
-                        }
-                    },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.extraLarge
-                )
+                        },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
+                        )
+                    )
+                }
                 LaunchedEffect(Unit) { focusRequester.requestFocus() }
             }
 
@@ -121,6 +138,7 @@ fun VendorGridScreen(
                             vendor = vendor,
                             onClick = { onVendorClick(vendor.id) },
                             onEditClick = { onEditVendorClick(vendor.id) },
+                            onDuplicateClick = { viewModel.duplicateVendor(vendor.id) },
                             modifier = Modifier.animateItem()
                         )
                     }
@@ -136,11 +154,18 @@ private fun EmptyVendorState(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val scale by infiniteTransition.animateFloat(
+            initialValue = 0.9f, targetValue = 1.1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ), label = "scale"
+        )
         val alpha by infiniteTransition.animateFloat(
             initialValue = 0.3f, targetValue = 0.8f,
             animationSpec = infiniteRepeatable(
@@ -148,30 +173,48 @@ private fun EmptyVendorState(
                 repeatMode = RepeatMode.Reverse
             ), label = "alpha"
         )
-        Text(
-            "📡",
-            style = MaterialTheme.typography.displayLarge.copy(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .scale(scale)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = alpha),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Nfc,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(64.dp)
             )
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             "Nessun Vendor configurato",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Usa il tasto + in alto per creare\nil tuo primo Vendor",
+            "Aggiungi il tuo primo Vendor per iniziare a programmare i tag NFC Mifare Classic.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(24.dp))
-        FilledTonalButton(onClick = onAddClick) {
-            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onAddClick,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.height(56.dp).fillMaxWidth(0.8f)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Crea Vendor")
+            Text("Crea Vendor", fontWeight = FontWeight.Bold)
         }
     }
 }

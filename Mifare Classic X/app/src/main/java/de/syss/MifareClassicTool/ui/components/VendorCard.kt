@@ -1,7 +1,10 @@
 package de.syss.MifareClassicTool.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -39,15 +43,22 @@ fun VendorCard(
     vendor: VendorEntity,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
+    onDuplicateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val categoryColor = getCategoryColor(vendor.category)
 
     val statusColor = writeStatusColor(vendor.lastWriteResult)
+    var menuExpanded by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier.height(176.dp)) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "card_scale")
+
+    Box(modifier = modifier.height(176.dp).scale(scale)) {
         Card(
             onClick = onClick,
+            interactionSource = interactionSource,
             modifier = Modifier
                 .fillMaxSize()
                 .border(
@@ -140,20 +151,44 @@ fun VendorCard(
             }
         }
 
-        // Edit button — top-right overlay
-        IconButton(
-            onClick = onEditClick,
+        // Options menu — top-right overlay
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 6.dp, end = 2.dp)
-                .size(32.dp)
         ) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = "Modifica",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp)
-            )
+            IconButton(
+                onClick = { menuExpanded = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = "Opzioni",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Modifica") },
+                    onClick = {
+                        menuExpanded = false
+                        onEditClick()
+                    },
+                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Duplica") },
+                    onClick = {
+                        menuExpanded = false
+                        onDuplicateClick()
+                    },
+                    leadingIcon = { Icon(Icons.Filled.FileCopy, contentDescription = null) }
+                )
+            }
         }
     }
 }

@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 /**
  * ViewModel for the VendorGridScreen.
@@ -42,6 +44,12 @@ class VendorGridViewModel(application: Application) : AndroidViewModel(applicati
         isSearchVisible = !isSearchVisible
         if (!isSearchVisible) {
             _searchQuery.value = ""
+        }
+    }
+
+    fun duplicateVendor(vendorId: String) {
+        viewModelScope.launch {
+            repository.duplicateVendor(vendorId)
         }
     }
 }

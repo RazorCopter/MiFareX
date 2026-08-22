@@ -28,6 +28,8 @@ fun UidManagerScreen(
     val uids by viewModel.uids.collectAsStateWithLifecycle(initialValue = emptyList())
     val vendors by viewModel.vendors.collectAsStateWithLifecycle()
 
+    var showAddDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,6 +40,11 @@ fun UidManagerScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Aggiungi UID")
+            }
         }
     ) { padding ->
         if (uids.isEmpty()) {
@@ -67,6 +74,17 @@ fun UidManagerScreen(
                 }
             }
         }
+    }
+
+    if (showAddDialog) {
+        ManualUidDialog(
+            vendors = vendors,
+            onDismiss = { showAddDialog = false },
+            onConfirm = { uid, vendorId ->
+                viewModel.addManualUid(uid, vendorId)
+                showAddDialog = false
+            }
+        )
     }
 }
 
@@ -289,4 +307,102 @@ private fun EmptyUidState(modifier: Modifier = Modifier) {
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManualUidDialog(
+    vendors: List<VendorEntity>,
+    onDismiss: () -> Unit,
+    onConfirm: (uid: String, vendorId: String) -> Unit
+) {
+    var uidText by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+    var selectedVendor by remember { mutableStateOf<VendorEntity?>(null) }
+    
+    // Light validation: allow only hex chars and spaces, remove spaces for validation
+    val isUidValid = uidText.replace(Regex("\\s+"), "").matches(Regex("^[0-9A-Fa-f]+$"))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Inserimento Manuale UID") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = uidText,
+                    onValueChange = { newValue ->
+                        uidText = newValue.uppercase()
+                    },
+                    label = { Text("UID (Esadecimale)") },
+                    placeholder = { Text("es. 045A6112") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = uidText.isNotEmpty() && !isUidValid,
+                    supportingText = {
+                        if (uidText.isNotEmpty() && !isUidValid) {
+                            Text("Solo caratteri esadecimali (0-9, A-F)")
+                        }
+                    }
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedVendor?.name ?: "Seleziona Vendor",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Vendor") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor(
+                            type = MenuAnchorType.PrimaryNotEditable,
+                            enabled = true
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        if (vendors.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("Nessun vendor disponibile") },
+                                onClick = { expanded = false }
+                            )
+                        } else {
+                            vendors.forEach { vendor ->
+                                DropdownMenuItem(
+                                    text = { Text(vendor.name) },
+                                    onClick = {
+                                        selectedVendor = vendor
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val cleanUid = uidText.replace(Regex("\\s+"), "")
+                    selectedVendor?.let {
+                        onConfirm(cleanUid, it.id)
+                    }
+                },
+                enabled = isUidValid && uidText.isNotEmpty() && selectedVendor != null
+            ) {
+                Text("Associa e Salva")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annulla")
+            }
+        }
+    )
 }

@@ -51,6 +51,16 @@ fun NfcRingsAnimation(
                 val p = progress.value
                 val radius = maxRadius * p
                 val alpha = (1f - p) * (if (isWriting) 0.8f else 0.5f)
+                
+                // Glow effect (thicker stroke, lower alpha)
+                drawCircle(
+                    color = color.copy(alpha = alpha * 0.3f),
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = strokeWidth * 4)
+                )
+                
+                // Core ring
                 drawCircle(
                     color = color.copy(alpha = alpha),
                     radius = radius,

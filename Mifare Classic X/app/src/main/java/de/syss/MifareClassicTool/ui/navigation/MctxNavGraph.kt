@@ -26,13 +26,11 @@ import de.syss.MifareClassicTool.ui.usermode.VendorWriteViewModel
 import de.syss.MifareClassicTool.ui.adminmode.VendorEditorScreen
 import de.syss.MifareClassicTool.ui.adminmode.ImportExportScreen
 import de.syss.MifareClassicTool.ui.adminmode.UidManagerScreen
-import de.syss.MifareClassicTool.ui.expertmode.ExpertModeScreen
 
 object Routes {
     const val USER_MODE = "user_mode"
     const val AUTO_MODE = "auto_mode"
     const val ADMIN_MODE = "admin_mode"
-    const val EXPERT_MODE = "expert_mode"
 
     const val VENDOR_GRID = "vendor_grid"
     const val VENDOR_DETAIL = "vendor_detail/{vendorId}"
@@ -73,12 +71,6 @@ val bottomNavItems = listOf(
         label = "Configura",
         selectedIcon = Icons.Filled.Settings,
         unselectedIcon = Icons.Outlined.Settings
-    ),
-    BottomNavItem(
-        route = Routes.EXPERT_MODE,
-        label = "Expert",
-        selectedIcon = Icons.Filled.Terminal,
-        unselectedIcon = Icons.Outlined.Terminal
     )
 )
 
@@ -172,9 +164,5 @@ fun MctxNavGraph(
             UidManagerScreen(onBackClick = { navController.popBackStack() })
         }
 
-        // === Expert Mode ===
-        composable(Routes.EXPERT_MODE) {
-            ExpertModeScreen()
-        }
     }
 }

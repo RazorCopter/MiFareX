@@ -40,6 +40,12 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
 
     private var editingVendorId: String? = null
 
+    // Preserved metadata from original vendor (not exposed in UI)
+    private var originalWriteCount: Int = 0
+    private var originalWriteResult: WriteResult = WriteResult.NEVER_USED
+    private var originalCreatedAt: Long = System.currentTimeMillis()
+    private var originalSortOrder: Int = 0
+
     /**
      * Load existing vendor data for editing.
      */
@@ -57,6 +63,11 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
                 iconUri = vendor.iconUri
                 sectorKeys = repository.parseKeys(vendor)
                 writeBlocks = repository.parsePayload(vendor).blocks
+                // Preserve metadata that should survive edits
+                originalWriteCount = vendor.writeCount
+                originalWriteResult = vendor.lastWriteResult
+                originalCreatedAt = vendor.createdAt
+                originalSortOrder = vendor.sortOrder
             }
             isLoading = false
         }
@@ -101,8 +112,8 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
      * Add a new sector key entry. Multiple entries for the same sector are allowed
      * (NfcBridge will try each in sequence until one authenticates).
      */
-    fun addSectorKey(sector: Int, keyA: String?, keyB: String?) {
-        val key = SectorKey(sector, keyA?.uppercase(), keyB?.uppercase())
+    fun addSectorKey(sector: Int, keyA: String?, keyB: String?, label: String? = null) {
+        val key = SectorKey(sector, keyA?.uppercase(), keyB?.uppercase(), label?.trim()?.ifBlank { null })
         sectorKeys = sectorKeys + key
     }
 
@@ -114,9 +125,10 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
     }
 
     /**
-     * Add a new block write entry.
+     * Add a new block write entry (only data blocks 0, 1, 2 permitted).
      */
     fun addWriteBlock(sector: Int, block: Int, data: String) {
+        if (block !in 0..2) return
         try {
             val entry = WriteBlockEntry(sector, block, data.uppercase())
             writeBlocks = writeBlocks + entry
@@ -146,6 +158,7 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
                 blocks = writeBlocks
             )
 
+            val isEdit = editingVendorId != null
             val entity = VendorEntity(
                 id = editingVendorId ?: UUID.randomUUID().toString(),
                 name = name.trim(),
@@ -155,7 +168,11 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
                 category = category,
                 tagType = tagType,
                 keysJson = repository.serializeKeys(sectorKeys),
-                payloadJson = repository.serializePayload(payload)
+                payloadJson = repository.serializePayload(payload),
+                createdAt = if (isEdit) originalCreatedAt else System.currentTimeMillis(),
+                lastWriteResult = if (isEdit) originalWriteResult else WriteResult.NEVER_USED,
+                writeCount = if (isEdit) originalWriteCount else 0,
+                sortOrder = if (isEdit) originalSortOrder else 0
             )
 
             repository.saveVendor(entity)

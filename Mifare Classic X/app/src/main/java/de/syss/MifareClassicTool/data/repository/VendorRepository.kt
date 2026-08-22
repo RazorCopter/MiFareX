@@ -40,6 +40,20 @@ class VendorRepository(context: Context) {
         dao.insertVendor(vendor.copy(updatedAt = System.currentTimeMillis()))
     }
 
+    suspend fun duplicateVendor(vendorId: String): VendorEntity? {
+        val vendor = dao.getVendorById(vendorId) ?: return null
+        val copy = vendor.copy(
+            id = UUID.randomUUID().toString(),
+            name = "${vendor.name} (Copia)",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+            writeCount = 0,
+            lastWriteResult = de.syss.MifareClassicTool.data.model.WriteResult.NEVER_USED
+        )
+        dao.insertVendor(copy)
+        return copy
+    }
+
     suspend fun deleteVendor(id: String) = dao.deleteVendorById(id)
 
     suspend fun getVendorCount(): Int = dao.getVendorCount()
@@ -110,11 +124,15 @@ class VendorRepository(context: Context) {
      */
     suspend fun exportAllToJson(): String {
         val entities = dao.getAllVendorsSnapshot()
-        return exportVendorsToJson(entities)
+        val uidEntities = uidDao.getAllUidsSnapshot()
+        
+        val configs = entities.map { entityToConfig(it) }
+        val bundle = VendorExportBundle(vendors = configs, uids = uidEntities)
+        return json.encodeToString(bundle)
     }
 
     /**
-     * Export specific vendors to a JSON string.
+     * Export specific vendors to a JSON string. (Usually doesn't include UIDs, but let's leave it as is).
      */
     fun exportVendorsToJson(vendors: List<VendorEntity>): String {
         val configs = vendors.map { entityToConfig(it) }
@@ -123,7 +141,7 @@ class VendorRepository(context: Context) {
     }
 
     /**
-     * Import vendors from a JSON string.
+     * Import vendors and UIDs from a JSON string.
      * @return Number of vendors imported.
      */
     suspend fun importFromJson(jsonString: String): Int {
@@ -132,6 +150,11 @@ class VendorRepository(context: Context) {
             configToEntity(config, sortOrder = index)
         }
         dao.insertVendors(entities)
+        
+        if (bundle.uids.isNotEmpty()) {
+            uidDao.insertUids(bundle.uids)
+        }
+        
         return entities.size
     }
 

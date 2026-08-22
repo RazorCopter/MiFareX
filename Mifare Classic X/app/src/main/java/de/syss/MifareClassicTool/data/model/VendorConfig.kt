@@ -32,5 +32,6 @@ data class VendorConfig(
 data class VendorExportBundle(
     val version: Int = 1,
     val exportedAt: Long = System.currentTimeMillis(),
-    val vendors: List<VendorConfig>
+    val vendors: List<VendorConfig>,
+    val uids: List<UidEntry> = emptyList()
 )

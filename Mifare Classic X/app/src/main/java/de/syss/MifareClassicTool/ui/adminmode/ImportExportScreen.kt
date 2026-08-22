@@ -38,6 +38,7 @@ fun ImportExportScreen(
 ) {
     val state = viewModel.state
     val vendorCount = viewModel.vendorCount
+    val uidCount = viewModel.uidCount
 
     // === SAF Launchers ===
 
@@ -91,7 +92,7 @@ fun ImportExportScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "$vendorCount vendor configurati",
+                        text = "$vendorCount vendor e $uidCount UID configurati",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer

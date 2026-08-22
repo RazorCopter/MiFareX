@@ -22,6 +22,17 @@ sealed class NfcWriteState {
 }
 
 /**
+ * State machine for the "Test Keys" flow.
+ * Only runs preflight (authentication check) — never writes.
+ */
+sealed class NfcTestState {
+    data object Idle : NfcTestState()
+    data object WaitingForTag : NfcTestState()
+    data class Testing(val message: String = "Verifica chiavi in corso...") : NfcTestState()
+    data class Result(val preflight: PreflightResult) : NfcTestState()
+}
+
+/**
  * AutoMode state machine.
  *
  * Listening  — waiting for any NFC tag
@@ -46,6 +57,11 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _writeState = MutableStateFlow<NfcWriteState>(NfcWriteState.Idle)
     val writeState: StateFlow<NfcWriteState> = _writeState.asStateFlow()
+
+    // ===== Test Keys flow =====
+
+    private val _testState = MutableStateFlow<NfcTestState>(NfcTestState.Idle)
+    val testState: StateFlow<NfcTestState> = _testState.asStateFlow()
 
     private var currentVendor: VendorEntity? = null
 
@@ -83,6 +99,21 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     fun cancelWriteFlow() { _writeState.value = NfcWriteState.Idle }
     fun resetState() { _writeState.value = NfcWriteState.Idle }
 
+    // ===== Test Keys =====
+
+    fun startTestKeys() {
+        val vendor = currentVendor ?: return
+        val keys = repository.parseKeys(vendor)
+        if (keys.isEmpty()) {
+            _testState.value = NfcTestState.Result(PreflightResult.NoKeysConfigured)
+            return
+        }
+        _testState.value = NfcTestState.WaitingForTag
+    }
+
+    fun cancelTestKeys() { _testState.value = NfcTestState.Idle }
+    fun resetTestState() { _testState.value = NfcTestState.Idle }
+
     // ===== AutoMode =====
 
     private val _autoModeState = MutableStateFlow<AutoModeState>(AutoModeState.Off)
@@ -92,9 +123,19 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     fun stopAutoMode() { _autoModeState.value = AutoModeState.Off }
     fun resetAutoMode() { _autoModeState.value = AutoModeState.Listening }
 
-    fun associateUidOnly(uid: String, vendorId: String) {
+    fun associateUidOnly(uid: String, vendorId: String, context: android.content.Context? = null) {
         viewModelScope.launch {
-            repository.saveUid(uid, vendorId)
+            try {
+                repository.saveUid(uid, vendorId)
+                context?.let {
+                    android.widget.Toast.makeText(it, "UID associato con successo", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                context?.let {
+                    android.widget.Toast.makeText(it, "Errore associazione: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -106,6 +147,11 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         // Manual write has priority; check and transition atomically to avoid double-dispatch.
         if (_writeState.compareAndSet(NfcWriteState.WaitingForTag, NfcWriteState.Verifying("Verifica tag e chiavi..."))) {
             handleManualTag(tag)
+            return
+        }
+        // Test Keys flow: only run preflight, never write.
+        if (_testState.compareAndSet(NfcTestState.WaitingForTag, NfcTestState.Testing("Verifica chiavi in corso..."))) {
+            handleTestKeysTag(tag)
             return
         }
         // AutoMode: transition Listening → Writing atomically so rapid re-dispatches are dropped.
@@ -136,6 +182,19 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
             }
             writeResult?.let { repository.updateWriteResult(vendor.id, it) }
             _writeState.value = NfcWriteState.Completed(result)
+        }
+    }
+
+    private fun handleTestKeysTag(tag: Tag) {
+        val vendor = currentVendor ?: run {
+            _testState.value = NfcTestState.Idle
+            return
+        }
+        viewModelScope.launch {
+            val keys = repository.parseKeys(vendor)
+            val payload = repository.parsePayload(vendor)
+            val result = nfcBridge.runPreflightOnly(tag, keys, payload, vendor.tagType)
+            _testState.value = NfcTestState.Result(result)
         }
     }
 

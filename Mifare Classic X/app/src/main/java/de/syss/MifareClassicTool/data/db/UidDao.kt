@@ -10,6 +10,12 @@ interface UidDao {
     @Query("SELECT * FROM uid_entries ORDER BY createdAt ASC")
     fun getAllUids(): Flow<List<UidEntry>>
 
+    @Query("SELECT * FROM uid_entries")
+    suspend fun getAllUidsSnapshot(): List<UidEntry>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUids(uids: List<UidEntry>)
+
     @Query("SELECT * FROM uid_entries WHERE vendorId = :vendorId ORDER BY createdAt ASC")
     fun getUidsForVendor(vendorId: String): Flow<List<UidEntry>>
 

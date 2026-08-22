@@ -25,13 +25,34 @@ class UidManagerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun reassociate(uid: String, newVendorId: String) {
         viewModelScope.launch {
-            repository.saveUid(uid, newVendorId)
+            try {
+                repository.saveUid(uid, newVendorId)
+                android.widget.Toast.makeText(getApplication(), "UID riassociato con successo", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(getApplication(), "Errore riassociazione: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
 
     fun delete(uid: String) {
         viewModelScope.launch {
             repository.deleteUid(uid)
+        }
+    }
+
+    fun addManualUid(uid: String, vendorId: String) {
+        viewModelScope.launch {
+            try {
+                val formattedUid = uid.trim().uppercase()
+                if (formattedUid.isNotEmpty()) {
+                    repository.saveUid(formattedUid, vendorId)
+                    android.widget.Toast.makeText(getApplication(), "UID associato con successo", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(getApplication(), "Errore salvataggio UID: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

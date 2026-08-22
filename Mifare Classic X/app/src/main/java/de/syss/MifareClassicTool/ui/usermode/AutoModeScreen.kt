@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -183,12 +184,24 @@ private fun DonePanel(
         else -> "Scrittura fallita"
     }
 
-    // Haptic feedback on result
+    // Haptic feedback on result — differentiated pattern per outcome
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(result) {
-        haptic.performHapticFeedback(
-            if (isSuccess) HapticFeedbackType.LongPress else HapticFeedbackType.LongPress
-        )
+        when {
+            isSuccess -> {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                kotlinx.coroutines.delay(120)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            isPartial -> {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            else -> {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                kotlinx.coroutines.delay(80)
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        }
     }
 
     Column(
@@ -271,24 +284,20 @@ private fun UnknownUidDialog(
                     )
                 }
                 Text(
-                    "Associa questo tag a un Vendor per programmarlo automaticamente.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "Questo tag non è associato ad alcun vendor. Vuoi associarlo ora per scriverci in futuro?",
+                    style = MaterialTheme.typography.bodyMedium
                 )
                 ExposedDropdownMenuBox(
                     expanded = dropdownExpanded,
-                    onExpandedChange = { dropdownExpanded = it }
+                    onExpandedChange = { dropdownExpanded = !dropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedVendor?.name ?: "Seleziona Vendor…",
+                        value = selectedVendor?.name ?: "Seleziona Vendor...",
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
-                        }
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                     )
                     ExposedDropdownMenu(
                         expanded = dropdownExpanded,
@@ -296,15 +305,7 @@ private fun UnknownUidDialog(
                     ) {
                         vendors.forEach { vendor ->
                             DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(vendor.name, fontWeight = FontWeight.Medium)
-                                        vendor.subtitle?.let {
-                                            Text(it, style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                },
+                                text = { Text(vendor.name) },
                                 onClick = {
                                     selectedVendor = vendor
                                     dropdownExpanded = false
@@ -316,10 +317,11 @@ private fun UnknownUidDialog(
             }
         },
         confirmButton = {
+            val context = LocalContext.current
             Button(
                 onClick = {
                     selectedVendor?.let { vendor ->
-                        viewModel.associateUidOnly(uid, vendor.id)
+                        viewModel.associateUidOnly(uid, vendor.id, context)
                         onDismiss()
                     }
                 },

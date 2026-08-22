@@ -4,11 +4,13 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Maps a MIFARE tag UID (hex string) to a Vendor.
  * Used by AutoMode to automatically write the right vendor when a tag is detected.
  */
+@Serializable
 @Entity(
     tableName = "uid_entries",
     foreignKeys = [

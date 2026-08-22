@@ -36,6 +36,7 @@ sealed class ImportExportState {
 class ImportExportViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = VendorRepository(application)
+    private val uidDao = de.syss.MifareClassicTool.data.db.AppDatabase.getInstance(application).uidDao()
 
     var state by mutableStateOf<ImportExportState>(ImportExportState.Idle)
         private set
@@ -43,13 +44,17 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
     var vendorCount by mutableStateOf(0)
         private set
 
+    var uidCount by mutableStateOf(0)
+        private set
+
     init {
-        refreshVendorCount()
+        refreshCounts()
     }
 
-    private fun refreshVendorCount() {
+    private fun refreshCounts() {
         viewModelScope.launch {
             vendorCount = repository.getVendorCount()
+            uidCount = uidDao.getAllUidsSnapshot().size
         }
     }
 
@@ -69,8 +74,9 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
                 val jsonString = repository.exportAllToJson()
                 writeJsonToUri(uri, jsonString)
                 val count = repository.getVendorCount()
+                val uidC = uidDao.getAllUidsSnapshot().size
                 state = ImportExportState.Success(
-                    "Esportazione completata!\n$count vendor esportati con successo."
+                    "Esportazione completata!\n$count vendor e $uidC UID esportati con successo."
                 )
             } catch (e: Exception) {
                 state = ImportExportState.Error(
@@ -125,10 +131,10 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
                     return@launch
                 }
 
-                val importedCount = repository.importFromJson(jsonString)
-                refreshVendorCount()
+                val count = repository.importFromJson(jsonString)
+                refreshCounts()
                 state = ImportExportState.Success(
-                    "Importazione completata!\n$importedCount vendor importati con successo."
+                    "Importazione completata!\n$count vendor importati/aggiornati con successo."
                 )
             } catch (e: kotlinx.serialization.SerializationException) {
                 state = ImportExportState.Error(
