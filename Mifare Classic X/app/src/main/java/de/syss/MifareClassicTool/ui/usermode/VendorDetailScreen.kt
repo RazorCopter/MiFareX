@@ -23,7 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.syss.MifareClassicTool.Activities.DumpEditor
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.domain.model.PreflightResult
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
@@ -49,6 +52,19 @@ fun VendorDetailScreen(
     val vendor by vendorFlow.collectAsStateWithLifecycle(initialValue = null)
     val writeState by viewModel.writeState.collectAsStateWithLifecycle()
     val testState by viewModel.testState.collectAsStateWithLifecycle()
+    val readState by viewModel.readState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(readState) {
+        if (readState is NfcReadState.Success) {
+            val dump = (readState as NfcReadState.Success).dump
+            val intent = Intent(context, DumpEditor::class.java).apply {
+                putExtra(DumpEditor.EXTRA_DUMP, dump)
+            }
+            context.startActivity(intent)
+            viewModel.resetReadState()
+        }
+    }
 
     vendor?.let { v ->
         val hasKeys = remember(v.keysJson) {
@@ -80,6 +96,7 @@ fun VendorDetailScreen(
                     hasKeys = hasKeys,
                     onStartWrite = { viewModel.startWriteFlow() },
                     onStartTest = { viewModel.startTestKeys() },
+                    onStartRead = { viewModel.startReadFlow() },
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -164,6 +181,88 @@ fun VendorDetailScreen(
                         )
                     }
                 }
+
+                // Read Tag overlay states
+                AnimatedVisibility(
+                    visible = readState is NfcReadState.WaitingForTag,
+                    enter = fadeIn() + slideInVertically { it },
+                    exit = fadeOut() + slideOutVertically { it }
+                ) {
+                    NfcWaitingOverlay(
+                        vendorName = "Lettura Tag",
+                        onCancel = { viewModel.cancelReadFlow() }
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = readState is NfcReadState.Reading,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    val msg = (readState as? NfcReadState.Reading)?.message
+                        ?: "Lettura tag in corso..."
+                    VerifyingOverlay(message = msg)
+                }
+
+                AnimatedVisibility(
+                    visible = readState is NfcReadState.Error,
+                    enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                    exit = fadeOut()
+                ) {
+                    val msg = (readState as? NfcReadState.Error)?.message
+                    if (msg != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Error,
+                                        contentDescription = null,
+                                        tint = Color(0xFFC62828),
+                                        modifier = Modifier.size(64.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Errore di Lettura",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = msg,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    Button(
+                                        onClick = { viewModel.resetReadState() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Chiudi")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     } ?: run {
@@ -184,6 +283,7 @@ private fun VendorDetailContent(
     hasKeys: Boolean,
     onStartWrite: () -> Unit,
     onStartTest: () -> Unit,
+    onStartRead: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val categoryColor = getCategoryColor(vendor.category)
@@ -302,32 +402,15 @@ private fun VendorDetailContent(
                     }
                 }
                 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (hasKeys) {
-                        OutlinedButton(
-                            onClick = onStartTest,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Testa Chiavi",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
                     Button(
                         onClick = onStartWrite,
                         enabled = isWritable,
                         modifier = Modifier
-                            .weight(if (hasKeys) 1.5f else 1f)
+                            .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = categoryColor)
@@ -339,6 +422,38 @@ private fun VendorDetailContent(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+                    if (hasKeys) {
+                        OutlinedButton(
+                            onClick = onStartRead,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Leggi Blocchi Memoria",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = onStartTest,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Testa Chiavi",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

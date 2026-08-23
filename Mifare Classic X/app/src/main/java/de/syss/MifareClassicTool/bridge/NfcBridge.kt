@@ -141,6 +141,83 @@ class NfcBridge {
         }
     }
 
+    /**
+     * Read tag blocks using the vendor's keys and return a dump array
+     * formatted for the legacy DumpEditor activity.
+     */
+    suspend fun readVendorDump(
+        tag: Tag,
+        keys: List<SectorKey>
+    ): Array<String>? = withContext(Dispatchers.IO) {
+        if (keys.isEmpty()) return@withContext null
+
+        val reader = MCReader.get(tag) ?: return@withContext null
+
+        try {
+            reader.connect()
+            
+            // Extract all unique keys from the vendor configuration
+            val uniqueHexKeys = mutableSetOf<String>()
+            for (sk in keys) {
+                sk.keyA?.let { uniqueHexKeys.add(it.uppercase()) }
+                sk.keyB?.let { uniqueHexKeys.add(it.uppercase()) }
+            }
+            // Always add the default factory key as a fallback
+            uniqueHexKeys.add(MCReader.DEFAULT_KEY)
+            
+            val uniqueKeys = uniqueHexKeys.map { Common.hex2Bytes(it) }
+            val tmpDump = mutableListOf<String>()
+            val sectorCount = reader.sectorCount
+            
+            for (i in 0 until sectorCount) {
+                tmpDump.add("+Sector: $i")
+                var sectorData: Array<String>? = null
+                
+                // Try to read the sector with every available key
+                for (key in uniqueKeys) {
+                    try {
+                        // Try as Key A
+                        val dataA = reader.readSector(i, key, false)
+                        if (dataA != null) {
+                            sectorData = dataA
+                            break
+                        }
+                    } catch (e: TagLostException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Auth failed, ignore and try next
+                    }
+
+                    try {
+                        // Try as Key B
+                        val dataB = reader.readSector(i, key, true)
+                        if (dataB != null) {
+                            sectorData = dataB
+                            break
+                        }
+                    } catch (e: TagLostException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // Auth failed, ignore and try next
+                    }
+                }
+                
+                if (sectorData != null) {
+                    tmpDump.addAll(sectorData)
+                } else {
+                    tmpDump.add("*No keys found or dead sector")
+                }
+            }
+            return@withContext tmpDump.toTypedArray()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading vendor dump", e)
+            return@withContext null
+        } finally {
+            safeClose(reader)
+        }
+    }
+
     // ===================================================================
     //  PRE-FLIGHT CHECK
     // ===================================================================
@@ -375,6 +452,26 @@ class NfcBridge {
             sk.keyA?.let { pair[0] = Common.hex2Bytes(it) }
             sk.keyB?.let { pair[1] = Common.hex2Bytes(it) }
             result.getOrPut(sk.sector) { mutableListOf() }.add(pair)
+        }
+        
+        // Always append the default factory key as a fallback for every referenced sector
+        // This allows preflight and write operations to succeed on brand new tags.
+        val defaultKeyBytes = Common.hex2Bytes(MCReader.DEFAULT_KEY)
+        val defaultPair = arrayOf(defaultKeyBytes, defaultKeyBytes)
+        
+        for ((_, list) in result) {
+            // Check if default key is already in the list to avoid duplicate attempts
+            var hasDefault = false
+            for (pair in list) {
+                if (pair[0]?.contentEquals(defaultKeyBytes) == true && 
+                    pair[1]?.contentEquals(defaultKeyBytes) == true) {
+                    hasDefault = true
+                    break
+                }
+            }
+            if (!hasDefault) {
+                list.add(defaultPair)
+            }
         }
         return result
     }

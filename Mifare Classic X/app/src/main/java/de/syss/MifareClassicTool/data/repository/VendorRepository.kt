@@ -37,7 +37,12 @@ class VendorRepository(context: Context) {
     suspend fun getVendorById(id: String): VendorEntity? = dao.getVendorById(id)
 
     suspend fun saveVendor(vendor: VendorEntity) {
-        dao.insertVendor(vendor.copy(updatedAt = System.currentTimeMillis()))
+        val updatedVendor = vendor.copy(updatedAt = System.currentTimeMillis())
+        if (dao.getVendorById(vendor.id) != null) {
+            dao.updateVendor(updatedVendor)
+        } else {
+            dao.insertVendor(updatedVendor)
+        }
     }
 
     suspend fun duplicateVendor(vendorId: String): VendorEntity? {

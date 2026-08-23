@@ -358,18 +358,20 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
     SectionHeader("Chiavi per Settore (Keys)")
 
     // Existing keys with SwipeToDismiss
-    viewModel.sectorKeys.forEachIndexed { index, key ->
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = {
-                if (it == SwipeToDismissBoxValue.EndToStart) {
-                    viewModel.removeSectorKeyAt(index)
-                    true
-                } else false
-            }
-        )
-        SwipeToDismissBox(
-            state = dismissState,
-            enableDismissFromStartToEnd = false,
+    viewModel.sectorKeys.forEach { keyItem ->
+        key(System.identityHashCode(keyItem)) {
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = {
+                    if (it == SwipeToDismissBoxValue.EndToStart) {
+                        val idx = viewModel.sectorKeys.indexOf(keyItem)
+                        if (idx >= 0) viewModel.removeSectorKeyAt(idx)
+                        true
+                    } else false
+                }
+            )
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = false,
             backgroundContent = {
                 val color by animateColorAsState(
                     when (dismissState.targetValue) {
@@ -410,11 +412,11 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                "Settore ${key.sector}",
+                                "Settore ${keyItem.sector}",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            key.label?.let { lbl ->
+                            keyItem.label?.let { lbl ->
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer
@@ -428,10 +430,15 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                                 }
                             }
                         }
-                        key.keyB?.let {
+                        keyItem.keyA?.let {
+                            Text("Key A: $it", style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                        keyItem.keyB?.let {
                             Text("Key B: $it", style = MaterialTheme.typography.bodySmall,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                         }
+                    }
                     }
                 }
             }
@@ -454,6 +461,7 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
             onDismissRequest = { showAddKeySheet = false }
         ) {
             var newKeySector by remember { mutableStateOf("") }
+            var newKeyA by remember { mutableStateOf("") }
             var newKeyB by remember { mutableStateOf("") }
             var newKeyLabel by remember { mutableStateOf("") }
 
@@ -472,6 +480,7 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                 val hexRegex = remember { Regex("^[0-9A-Fa-f]*$") }
                 val parsedSector = newKeySector.toIntOrNull()
                 val sectorError = newKeySector.isNotBlank() && (parsedSector == null || parsedSector !in 0..39)
+                val keyAError = newKeyA.isNotBlank() && (newKeyA.length != 12 || !newKeyA.matches(hexRegex))
                 val keyBError = newKeyB.isNotBlank() && (newKeyB.length != 12 || !newKeyB.matches(hexRegex))
 
                 OutlinedTextField(
@@ -483,23 +492,41 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
                 )
+                
+                OutlinedTextField(
+                    value = newKeySector,
+                    onValueChange = { newKeySector = it },
+                    label = { Text("Settore") },
+                    placeholder = { Text("0") },
+                    isError = sectorError,
+                    supportingText = {
+                        if (sectorError) {
+                            Text("Deve essere 0-39", color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("0-based (0 = 1° settore)")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = newKeySector,
-                        onValueChange = { newKeySector = it },
-                        label = { Text("Settore") },
-                        placeholder = { Text("0") },
-                        isError = sectorError,
-                        supportingText = {
-                            if (sectorError) {
-                                Text("Deve essere 0-39", color = MaterialTheme.colorScheme.error)
-                            } else {
-                                Text("0-based (0 = 1° settore)")
-                            }
+                        value = newKeyA,
+                        onValueChange = { 
+                            val stripped = it.replace(" ", "").uppercase()
+                            if (stripped.length <= 12 && stripped.matches(hexRegex)) newKeyA = stripped 
                         },
+                        label = { Text("Key A (opzionale)") },
+                        placeholder = { Text("FFFFFFFFFFFF") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        isError = keyAError,
+                        visualTransformation = HexVisualTransformation(),
+                        supportingText = if (keyAError) {
+                            { Text("12 hex") }
+                        } else null
                     )
                     OutlinedTextField(
                         value = newKeyB,
@@ -507,23 +534,24 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                             val stripped = it.replace(" ", "").uppercase()
                             if (stripped.length <= 12 && stripped.matches(hexRegex)) newKeyB = stripped 
                         },
-                        label = { Text("Key B (12 hex)") },
+                        label = { Text("Key B (obbligatoria)") },
                         placeholder = { Text("FFFFFFFFFFFF") },
-                        modifier = Modifier.weight(2f),
+                        modifier = Modifier.weight(1f),
                         singleLine = true,
                         isError = keyBError,
                         visualTransformation = HexVisualTransformation(),
                         supportingText = if (keyBError) {
-                            { Text("Deve essere esattamente 12 caratteri hex") }
+                            { Text("12 hex") }
                         } else null
                     )
                 }
+                
                 Button(
                     onClick = {
                         val sector = newKeySector.toIntOrNull() ?: return@Button
                         viewModel.addSectorKey(
                             sector,
-                            null,  // No Key A for write-only workflow
+                            newKeyA.ifBlank { null },
                             newKeyB.ifBlank { null },
                             newKeyLabel.ifBlank { null }
                         )
@@ -534,6 +562,7 @@ private fun SectorKeysSection(viewModel: VendorEditorViewModel) {
                             && !sectorError
                             && newKeyB.isNotBlank()
                             && !keyBError
+                            && !keyAError
                 ) {
                     Icon(Icons.Filled.Add, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
@@ -550,18 +579,20 @@ private fun PayloadBlocksSection(viewModel: VendorEditorViewModel) {
     SectionHeader("Blocchi da Scrivere (Payload)")
 
     // Existing blocks with SwipeToDismiss
-    viewModel.writeBlocks.forEachIndexed { index, block ->
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = {
-                if (it == SwipeToDismissBoxValue.EndToStart) {
-                    viewModel.removeWriteBlock(index)
-                    true
-                } else false
-            }
-        )
-        SwipeToDismissBox(
-            state = dismissState,
-            enableDismissFromStartToEnd = false,
+    viewModel.writeBlocks.forEach { blockItem ->
+        key(System.identityHashCode(blockItem)) {
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = {
+                    if (it == SwipeToDismissBoxValue.EndToStart) {
+                        val idx = viewModel.writeBlocks.indexOf(blockItem)
+                        if (idx >= 0) viewModel.removeWriteBlock(idx)
+                        true
+                    } else false
+                }
+            )
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = false,
             backgroundContent = {
                 val color by animateColorAsState(
                     when (dismissState.targetValue) {
@@ -598,15 +629,16 @@ private fun PayloadBlocksSection(viewModel: VendorEditorViewModel) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "S${block.sector} B${block.block}",
+                            "S${blockItem.sector} B${blockItem.block}",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            block.data,
+                            blockItem.data,
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                         )
+                    }
                     }
                 }
             }

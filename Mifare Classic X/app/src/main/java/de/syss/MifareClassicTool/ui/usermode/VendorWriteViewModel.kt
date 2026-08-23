@@ -33,6 +33,17 @@ sealed class NfcTestState {
 }
 
 /**
+ * State machine for the "Read Tag" flow.
+ */
+sealed class NfcReadState {
+    data object Idle : NfcReadState()
+    data object WaitingForTag : NfcReadState()
+    data class Reading(val message: String = "Lettura tag in corso...") : NfcReadState()
+    data class Success(val dump: Array<String>) : NfcReadState()
+    data class Error(val message: String) : NfcReadState()
+}
+
+/**
  * AutoMode state machine.
  *
  * Listening  — waiting for any NFC tag
@@ -62,6 +73,11 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
 
     private val _testState = MutableStateFlow<NfcTestState>(NfcTestState.Idle)
     val testState: StateFlow<NfcTestState> = _testState.asStateFlow()
+
+    // ===== Read Tag flow =====
+
+    private val _readState = MutableStateFlow<NfcReadState>(NfcReadState.Idle)
+    val readState: StateFlow<NfcReadState> = _readState.asStateFlow()
 
     private var currentVendor: VendorEntity? = null
 
@@ -114,6 +130,21 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     fun cancelTestKeys() { _testState.value = NfcTestState.Idle }
     fun resetTestState() { _testState.value = NfcTestState.Idle }
 
+    // ===== Read Tag =====
+
+    fun startReadFlow() {
+        val vendor = currentVendor ?: return
+        val keys = repository.parseKeys(vendor)
+        if (keys.isEmpty()) {
+            _readState.value = NfcReadState.Error("Nessuna chiave configurata per la lettura.")
+            return
+        }
+        _readState.value = NfcReadState.WaitingForTag
+    }
+
+    fun cancelReadFlow() { _readState.value = NfcReadState.Idle }
+    fun resetReadState() { _readState.value = NfcReadState.Idle }
+
     // ===== AutoMode =====
 
     private val _autoModeState = MutableStateFlow<AutoModeState>(AutoModeState.Off)
@@ -152,6 +183,11 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         // Test Keys flow: only run preflight, never write.
         if (_testState.compareAndSet(NfcTestState.WaitingForTag, NfcTestState.Testing("Verifica chiavi in corso..."))) {
             handleTestKeysTag(tag)
+            return
+        }
+        // Read flow
+        if (_readState.compareAndSet(NfcReadState.WaitingForTag, NfcReadState.Reading("Lettura tag in corso..."))) {
+            handleReadTag(tag)
             return
         }
         // AutoMode: transition Listening → Writing atomically so rapid re-dispatches are dropped.
@@ -198,6 +234,22 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    private fun handleReadTag(tag: Tag) {
+        val vendor = currentVendor ?: run {
+            _readState.value = NfcReadState.Idle
+            return
+        }
+        viewModelScope.launch {
+            val keys = repository.parseKeys(vendor)
+            val dump = nfcBridge.readVendorDump(tag, keys)
+            if (dump != null) {
+                _readState.value = NfcReadState.Success(dump)
+            } else {
+                _readState.value = NfcReadState.Error("Impossibile leggere il tag o chiavi non valide.")
+            }
+        }
+    }
+
     private fun handleAutoModeTag(tag: Tag) {
         val uid = tag.id.toHexString()
 
@@ -236,4 +288,4 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     fun getAllVendors() = repository.getAllVendors()
 }
 
-private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
+private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it.toInt() and 0xFF) }
