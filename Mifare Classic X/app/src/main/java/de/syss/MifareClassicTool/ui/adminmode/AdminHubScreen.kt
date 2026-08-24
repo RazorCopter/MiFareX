@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,7 @@ fun AdminHubScreen(
     onSettings: () -> Unit,
     onHistory: () -> Unit = {},
     onDiagnostics: () -> Unit = {},
+    onStats: () -> Unit = {},
     currentThemeMode: ThemeMode = ThemeMode.AUTO,
     onThemeModeChanged: (ThemeMode) -> Unit = {},
     useDynamicColor: Boolean = true,
@@ -76,6 +78,7 @@ fun AdminHubScreen(
         AdminAction("Nuovo vendor", "Crea chiavi, payload e regole per un nuovo profilo.", Icons.Filled.AddBusiness, onClick = onCreateVendor),
         AdminAction("Import ed export", "Backup locale e importazione validata dei profili.", Icons.Filled.ImportExport, onClick = onImportExport),
         AdminAction("Gestione UID", "Associa tessere conosciute ai vendor configurati.", Icons.Filled.Fingerprint, onClick = onUidManager),
+        AdminAction("Statistiche", "Analizza operazioni, esiti e trend dei vendor.", Icons.Filled.BarChart, onClick = onStats),
         AdminAction("Cronologia operazioni", "Consulta l'audit locale con esiti e dettagli privacy-safe.", Icons.Filled.History, onClick = onHistory),
         AdminAction("Diagnostica NFC", "Verifica adattatore, dispositivo e controlli operativi.", Icons.Filled.Nfc, onClick = onDiagnostics),
         AdminAction("Impostazioni", "Preferenze NFC e comportamento degli strumenti.", Icons.Filled.Settings, onClick = onSettings),

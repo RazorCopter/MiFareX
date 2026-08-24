@@ -31,6 +31,8 @@ import de.syss.MifareClassicTool.ui.adminmode.UidManagerScreen
 import de.syss.MifareClassicTool.ui.adminmode.AdminHubScreen
 import de.syss.MifareClassicTool.ui.history.OperationHistoryScreen
 import de.syss.MifareClassicTool.ui.diagnostics.NfcDiagnosticsScreen
+import de.syss.MifareClassicTool.ui.stats.StatsScreen
+import de.syss.MifareClassicTool.ui.sharing.QrScannerScreen
 import de.syss.MifareClassicTool.Activities.MainMenu
 import de.syss.MifareClassicTool.Activities.Preferences
 import de.syss.MifareClassicTool.ui.theme.ThemeMode
@@ -55,6 +57,8 @@ object Routes {
     const val UID_MANAGER = "uid_manager"
     const val OPERATION_HISTORY = "operation_history"
     const val NFC_DIAGNOSTICS = "nfc_diagnostics"
+    const val STATS = "stats"
+    const val QR_SCANNER = "qr_scanner"
 }
 
 data class BottomNavItem(
@@ -154,6 +158,7 @@ fun MctxNavGraph(
                 onUidManager = { navController.navigate(Routes.UID_MANAGER) },
                 onHistory = { navController.navigate(Routes.OPERATION_HISTORY) },
                 onDiagnostics = { navController.navigate(Routes.NFC_DIAGNOSTICS) },
+                onStats = { navController.navigate(Routes.STATS) },
                 onExpertMode = { context.startActivity(Intent(context, MainMenu::class.java)) },
                 onSettings = { context.startActivity(Intent(context, Preferences::class.java)) },
                 currentThemeMode = currentThemeMode,
@@ -203,6 +208,19 @@ fun MctxNavGraph(
 
         composable(Routes.NFC_DIAGNOSTICS) {
             NfcDiagnosticsScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.STATS) {
+            StatsScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.QR_SCANNER) {
+            QrScannerScreen(
+                onBackClick = { navController.popBackStack() },
+                onVendorScanned = {
+                    navController.popBackStack()
+                }
+            )
         }
 
     }

@@ -40,6 +40,7 @@ import de.syss.MifareClassicTool.ui.components.NfcProgressStepper
 import de.syss.MifareClassicTool.ui.components.NfcStatusBadge
 import de.syss.MifareClassicTool.ui.components.VendorCircleIcon
 import de.syss.MifareClassicTool.ui.components.getCategoryColor
+import de.syss.MifareClassicTool.ui.sharing.ShareVendorSheet
 
 /**
  * Vendor detail screen with NFC write flow.
@@ -81,6 +82,7 @@ fun VendorDetailScreen(
     vendor?.let { v ->
         var showWriteConfirmation by remember(v.id) { mutableStateOf(false) }
         var showDryRun by remember(v.id) { mutableStateOf(false) }
+        var showShareSheet by remember(v.id) { mutableStateOf(false) }
         val writePlan = remember(v.keysJson, v.payloadJson, v.tagType) { viewModel.analyzeWritePlan(v) }
         val hasKeys = remember(v.keysJson) {
             try { v.keysJson != "[]" && v.keysJson.isNotBlank() } catch (_: Exception) { false }
@@ -102,6 +104,9 @@ fun VendorDetailScreen(
                     },
                     actions = {
                         NfcStatusBadge()
+                        IconButton(onClick = { showShareSheet = true }) {
+                            Icon(Icons.Filled.Share, "Condividi via QR")
+                        }
                         IconButton(onClick = onEditClick) {
                             Icon(Icons.Filled.Edit, "Modifica")
                         }
@@ -307,6 +312,12 @@ fun VendorDetailScreen(
                 vendor = v,
                 plan = writePlan,
                 onDismiss = { showDryRun = false }
+            )
+        }
+        if (showShareSheet) {
+            ShareVendorSheet(
+                vendor = v,
+                onDismiss = { showShareSheet = false }
             )
         }
     } ?: run {
