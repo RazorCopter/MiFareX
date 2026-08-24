@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.data.repository.VendorRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
  * ViewModel for the VendorGridScreen.
  * Manages vendor list with search/filter capabilities.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class VendorGridViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = VendorRepository(application)

@@ -170,7 +170,7 @@ fun VendorEditorScreen(
                         value = "${viewModel.category.emoji} ${viewModel.category.displayName}",
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) }
                     )
                     ExposedDropdownMenu(
@@ -201,7 +201,7 @@ fun VendorEditorScreen(
                         value = viewModel.tagType.displayName,
                         onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tagTypeExpanded) }
                     )
                     ExposedDropdownMenu(

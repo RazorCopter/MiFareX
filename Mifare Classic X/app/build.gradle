@@ -4,6 +4,7 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose' version '2.2.10'
     id 'org.jetbrains.kotlin.plugin.serialization' version '2.2.10'
     id 'org.jetbrains.kotlin.kapt' version '2.2.10'
+    id 'jacoco'
 }
 
 android {
@@ -47,6 +48,38 @@ android {
 
 kapt {
     correctErrorTypes = true
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+tasks.register('jacocoTestReport', JacocoReport) {
+    dependsOn tasks.named('testDebugUnitTest')
+    group = 'verification'
+    description = 'Generates JaCoCo coverage reports for debug unit tests.'
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    def excludedClasses = [
+            '**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*',
+            '**/*Test*.*', 'android/**/*.*'
+    ]
+    classDirectories.setFrom(files(
+            fileTree(dir: "$buildDir/tmp/kotlin-classes/debug", excludes: excludedClasses),
+            fileTree(dir: "$buildDir/intermediates/javac/debug/compileDebugJavaWithJavac/classes", excludes: excludedClasses)
+    ))
+    sourceDirectories.setFrom(files('src/main/java'))
+    executionData.setFrom(fileTree(dir: layout.buildDirectory, includes: [
+            'jacoco/testDebugUnitTest.exec'
+    ]))
 }
 
 tasks.withType(JavaCompile).configureEach {

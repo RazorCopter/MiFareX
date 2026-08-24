@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -358,7 +359,7 @@ private fun VendorDetailContent(
                 InfoCard(icon = Icons.Filled.Nfc, label = "Tipo Tag", value = vendor.tagType.displayName)
                 InfoCard(icon = Icons.Filled.Category, label = "Categoria", value = vendor.category.displayName)
                 if (!vendor.notes.isNullOrBlank()) {
-                    InfoCard(icon = Icons.Filled.Notes, label = "Note", value = vendor.notes)
+                    InfoCard(icon = Icons.AutoMirrored.Filled.Notes, label = "Note", value = vendor.notes)
                 }
                 InfoCard(icon = Icons.Filled.History, label = "Scritture effettuate", value = "${vendor.writeCount}")
             }

@@ -235,7 +235,7 @@ private fun ReassignDialog(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Vendor") },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable),
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded)
                         }
