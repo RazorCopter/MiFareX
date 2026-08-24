@@ -32,6 +32,9 @@ import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.domain.model.PreflightResult
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
 import de.syss.MifareClassicTool.ui.components.NfcRingsAnimation
+import de.syss.MifareClassicTool.ui.components.MctxModeBadge
+import de.syss.MifareClassicTool.ui.components.NfcProgressStepper
+import de.syss.MifareClassicTool.ui.components.NfcStatusBadge
 import de.syss.MifareClassicTool.ui.components.VendorCircleIcon
 import de.syss.MifareClassicTool.ui.components.getCategoryColor
 
@@ -73,6 +76,7 @@ fun VendorDetailScreen(
     }
 
     vendor?.let { v ->
+        var showWriteConfirmation by remember(v.id) { mutableStateOf(false) }
         val hasKeys = remember(v.keysJson) {
             try { v.keysJson != "[]" && v.keysJson.isNotBlank() } catch (_: Exception) { false }
         }
@@ -80,13 +84,19 @@ fun VendorDetailScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(v.name) },
+                    title = {
+                        Column {
+                            Text(v.name, maxLines = 1)
+                            Text("Profilo operativo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "Indietro")
                         }
                     },
                     actions = {
+                        NfcStatusBadge()
                         IconButton(onClick = onEditClick) {
                             Icon(Icons.Filled.Edit, "Modifica")
                         }
@@ -100,7 +110,7 @@ fun VendorDetailScreen(
                     vendor = v,
                     isWritable = viewModel.vendorIsWritable(v),
                     hasKeys = hasKeys,
-                    onStartWrite = { viewModel.startWriteFlow() },
+                    onStartWrite = { showWriteConfirmation = true },
                     onStartTest = { viewModel.startTestKeys() },
                     onStartRead = { viewModel.startReadFlow() },
                     modifier = Modifier.fillMaxSize()
@@ -271,6 +281,16 @@ fun VendorDetailScreen(
                 }
             }
         }
+        if (showWriteConfirmation) {
+            WriteConfirmationDialog(
+                vendor = v,
+                onConfirm = {
+                    showWriteConfirmation = false
+                    viewModel.startWriteFlow()
+                },
+                onDismiss = { showWriteConfirmation = false }
+            )
+        }
     } ?: run {
         // Loading state
         Box(
@@ -300,6 +320,8 @@ private fun VendorDetailContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .widthIn(max = 920.dp)
+                .align(Alignment.TopCenter)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -307,7 +329,7 @@ private fun VendorDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(184.dp)
                     .graphicsLayer {
                         translationY = scrollState.value * 0.5f
                     }
@@ -330,9 +352,11 @@ private fun VendorDetailContent(
                         iconUri = vendor.iconUri,
                         category = vendor.category,
                         categoryColor = categoryColor,
-                        size = 96.dp
+                        size = 84.dp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    MctxModeBadge(if (isWritable) "Pronto" else "Configurazione incompleta")
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = vendor.name,
                         style = MaterialTheme.typography.headlineMedium,
@@ -363,7 +387,7 @@ private fun VendorDetailContent(
                 }
                 InfoCard(icon = Icons.Filled.History, label = "Scritture effettuate", value = "${vendor.writeCount}")
             }
-            Spacer(modifier = Modifier.height(100.dp)) // Space for bottom bar
+            Spacer(modifier = Modifier.height(if (hasKeys) 190.dp else 126.dp))
         }
 
         // Pinned action button — glassmorphism overlay
@@ -371,6 +395,7 @@ private fun VendorDetailContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .widthIn(max = 920.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -430,41 +455,50 @@ private fun VendorDetailContent(
                         )
                     }
                     if (hasKeys) {
-                        OutlinedButton(
-                            onClick = onStartRead,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Leggi Blocchi Memoria",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = onStartTest,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Testa Chiavi",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = onStartRead, modifier = Modifier.weight(1f).height(48.dp)) {
+                                Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Leggi")
+                            }
+                            OutlinedButton(onClick = onStartTest, modifier = Modifier.weight(1f).height(48.dp)) {
+                                Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Test chiavi")
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun WriteConfirmationDialog(
+    vendor: VendorEntity,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        title = { Text("Conferma operazione") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Stai per armare una sessione NFC di scrittura. La sessione verrà annullata uscendo dalla schermata.")
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(vendor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Tag atteso · ${vendor.tagType.displayName}", style = MaterialTheme.typography.bodySmall)
+                        Text("Controllo aree protette e read-back attivi", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onConfirm) { Text("Arma scrittura") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+    )
 }
 
 @Composable
@@ -523,8 +557,10 @@ fun NfcWaitingOverlay(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(32.dp).widthIn(max = 520.dp)
         ) {
+            MctxModeBadge("Sessione NFC")
+            Spacer(modifier = Modifier.height(20.dp))
             NfcRingsAnimation(
                 color = MaterialTheme.colorScheme.primary,
                 isWriting = false,
@@ -544,6 +580,8 @@ fun NfcWaitingOverlay(
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(24.dp))
+            NfcProgressStepper(activeStep = 0)
             Spacer(modifier = Modifier.height(32.dp))
             OutlinedButton(
                 onClick = onCancel,
@@ -569,7 +607,9 @@ private fun VerifyingOverlay(
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp).widthIn(max = 520.dp)) {
+            NfcProgressStepper(activeStep = 0)
+            Spacer(modifier = Modifier.height(24.dp))
             NfcRingsAnimation(
                 color = MaterialTheme.colorScheme.tertiary,
                 isWriting = true,
@@ -597,8 +637,8 @@ private fun VerifyingOverlay(
  */
 @Composable
 private fun WritingOverlay(
-    progressMessage: String = "Scrittura in corso...",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    progressMessage: String = "Scrittura in corso..."
 ) {
     Box(
         modifier = modifier
@@ -606,7 +646,9 @@ private fun WritingOverlay(
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp).widthIn(max = 520.dp)) {
+            NfcProgressStepper(activeStep = 1)
+            Spacer(modifier = Modifier.height(24.dp))
             NfcRingsAnimation(
                 color = MaterialTheme.colorScheme.primary,
                 isWriting = true,
@@ -751,6 +793,7 @@ private fun WriteResultOverlay(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 560.dp)
                 .padding(32.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
@@ -761,6 +804,8 @@ private fun WriteResultOverlay(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                NfcProgressStepper(activeStep = 2)
+                Spacer(modifier = Modifier.height(18.dp))
                 if (result is WriteOperationResult.Success) {
                     NfcRingsAnimation(
                         color = iconColor,
@@ -880,6 +925,7 @@ private fun TestKeysResultOverlay(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .widthIn(max = 560.dp)
                 .padding(32.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(

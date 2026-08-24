@@ -1,5 +1,6 @@
 package de.syss.MifareClassicTool.ui.navigation
 
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -26,11 +28,15 @@ import de.syss.MifareClassicTool.ui.usermode.VendorWriteViewModel
 import de.syss.MifareClassicTool.ui.adminmode.VendorEditorScreen
 import de.syss.MifareClassicTool.ui.adminmode.ImportExportScreen
 import de.syss.MifareClassicTool.ui.adminmode.UidManagerScreen
+import de.syss.MifareClassicTool.ui.adminmode.AdminHubScreen
+import de.syss.MifareClassicTool.Activities.MainMenu
+import de.syss.MifareClassicTool.Activities.Preferences
 
 object Routes {
     const val USER_MODE = "user_mode"
     const val AUTO_MODE = "auto_mode"
     const val ADMIN_MODE = "admin_mode"
+    const val ADMIN_HUB = "admin_hub"
 
     const val VENDOR_GRID = "vendor_grid"
     const val VENDOR_DETAIL = "vendor_detail/{vendorId}"
@@ -56,7 +62,7 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem(
         route = Routes.USER_MODE,
-        label = "Operativo",
+        label = "Operatore",
         selectedIcon = Icons.Filled.Nfc,
         unselectedIcon = Icons.Outlined.Nfc
     ),
@@ -68,7 +74,7 @@ val bottomNavItems = listOf(
     ),
     BottomNavItem(
         route = Routes.ADMIN_MODE,
-        label = "Configura",
+        label = "Admin",
         selectedIcon = Icons.Filled.Settings,
         unselectedIcon = Icons.Outlined.Settings
     )
@@ -80,9 +86,10 @@ fun MctxNavGraph(
     vendorWriteViewModel: VendorWriteViewModel,
     onNavigateToVendorDetail: (String) -> Unit,
     onNavigateToVendorEditor: (String?) -> Unit,
-    onNavigateToImportExport: () -> Unit = { navController.navigate(Routes.IMPORT_EXPORT) },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToImportExport: () -> Unit = { navController.navigate(Routes.IMPORT_EXPORT) }
 ) {
+    val context = LocalContext.current
     NavHost(
         navController = navController,
         startDestination = Routes.VENDOR_GRID,
@@ -130,6 +137,16 @@ fun MctxNavGraph(
         }
 
         // === Admin Mode ===
+        composable(Routes.ADMIN_HUB) {
+            AdminHubScreen(
+                onCreateVendor = { onNavigateToVendorEditor(null) },
+                onImportExport = onNavigateToImportExport,
+                onUidManager = { navController.navigate(Routes.UID_MANAGER) },
+                onExpertMode = { context.startActivity(Intent(context, MainMenu::class.java)) },
+                onSettings = { context.startActivity(Intent(context, Preferences::class.java)) }
+            )
+        }
+
         composable(
             route = Routes.VENDOR_EDITOR,
             arguments = listOf(

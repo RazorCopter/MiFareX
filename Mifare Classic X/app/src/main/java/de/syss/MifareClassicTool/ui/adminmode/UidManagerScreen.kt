@@ -18,6 +18,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.syss.MifareClassicTool.data.model.UidEntry
 import de.syss.MifareClassicTool.data.model.VendorEntity
+import de.syss.MifareClassicTool.ui.components.MctxModeBadge
+import de.syss.MifareClassicTool.ui.components.MctxStatusBanner
+import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,14 +34,22 @@ fun UidManagerScreen(
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text("Gestione UID") },
+                title = {
+                    Column {
+                        Text("Gestione UID")
+                        Text("Associazioni Auto Mode", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Indietro")
                     }
-                }
+                },
+                actions = { MctxModeBadge("Admin", modifier = Modifier.padding(end = 12.dp)) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             )
         },
         floatingActionButton = {
@@ -47,30 +58,31 @@ fun UidManagerScreen(
             }
         }
     ) { padding ->
-        if (uids.isEmpty()) {
-            EmptyUidState(modifier = Modifier.fillMaxSize().padding(padding))
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    Text(
-                        "${uids.size} UID registrat${if (uids.size == 1) "o" else "i"}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                }
-                items(uids, key = { it.uid }) { entry ->
-                    UidCard(
-                        entry = entry,
-                        currentVendor = viewModel.vendorForId(entry.vendorId),
-                        vendors = vendors,
-                        onReassociate = { newVendorId -> viewModel.reassociate(entry.uid, newVendorId) },
-                        onDelete = { viewModel.delete(entry.uid) }
-                    )
+        PremiumScreenBackground(modifier = Modifier.padding(padding)) {
+            if (uids.isEmpty()) {
+                EmptyUidState(modifier = Modifier.fillMaxSize())
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().widthIn(max = 840.dp).align(Alignment.TopCenter),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item {
+                        MctxStatusBanner(
+                            title = "${uids.size} UID registrat${if (uids.size == 1) "o" else "i"}",
+                            message = "Ogni UID può selezionare un solo vendor in Auto Mode.",
+                            icon = Icons.Filled.Link
+                        )
+                    }
+                    items(uids, key = { it.uid }) { entry ->
+                        UidCard(
+                            entry = entry,
+                            currentVendor = viewModel.vendorForId(entry.vendorId),
+                            vendors = vendors,
+                            onReassociate = { newVendorId -> viewModel.reassociate(entry.uid, newVendorId) },
+                            onDelete = { viewModel.delete(entry.uid) }
+                        )
+                    }
                 }
             }
         }
@@ -100,7 +112,11 @@ private fun UidCard(
     var showReassignDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

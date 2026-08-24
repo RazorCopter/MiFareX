@@ -8,6 +8,7 @@ import android.nfc.Tag
 import android.os.Build
 import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
+import androidx.core.content.edit
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import de.syss.MifareClassicTool.ui.auth.AuthResult
@@ -53,7 +55,7 @@ class ComposeActivity : FragmentActivity() {
                 when {
                     showOnboarding -> {
                         OnboardingScreen(onFinish = {
-                            prefs.edit().putBoolean("onboarding_done", true).apply()
+                            prefs.edit { putBoolean("onboarding_done", true) }
                             showOnboarding = false
                         })
                     }
@@ -155,8 +157,9 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
 
     val showBottomBar = currentRoute in listOf(
         Routes.VENDOR_GRID,
-        Routes.AUTO_MODE_SCREEN
-    ) || currentRoute?.startsWith("vendor_editor") == true
+        Routes.AUTO_MODE_SCREEN,
+        Routes.ADMIN_HUB
+    )
 
     Scaffold(
         bottomBar = {
@@ -165,14 +168,19 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it }
             ) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 0.dp
+                ) {
                     bottomNavItems.forEach { item ->
                         val selected = when (item.route) {
                             Routes.USER_MODE -> currentRoute == Routes.VENDOR_GRID ||
                                     currentRoute?.startsWith("vendor_detail") == true
                             Routes.AUTO_MODE -> currentRoute == Routes.AUTO_MODE_SCREEN
                             Routes.ADMIN_MODE -> currentRoute?.startsWith("vendor_editor") == true ||
-                                    currentRoute == Routes.IMPORT_EXPORT
+                                    currentRoute == Routes.IMPORT_EXPORT ||
+                                    currentRoute == Routes.UID_MANAGER ||
+                                    currentRoute == Routes.ADMIN_HUB
                             else -> false
                         }
 
@@ -182,7 +190,7 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
                                 val targetRoute = when (item.route) {
                                     Routes.USER_MODE -> Routes.VENDOR_GRID
                                     Routes.AUTO_MODE -> Routes.AUTO_MODE_SCREEN
-                                    Routes.ADMIN_MODE -> Routes.vendorEditor()
+                            Routes.ADMIN_MODE -> Routes.ADMIN_HUB
                                     else -> Routes.VENDOR_GRID
                                 }
                                 navController.navigate(targetRoute) {

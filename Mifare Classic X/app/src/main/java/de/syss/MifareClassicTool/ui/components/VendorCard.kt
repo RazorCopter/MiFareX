@@ -5,13 +5,44 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileCopy
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalCafe
+import androidx.compose.material.icons.filled.LocalCarWash
+import androidx.compose.material.icons.filled.LocalParking
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,8 +51,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,9 +64,9 @@ import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.data.model.WriteResult
 
 private fun writeStatusColor(result: WriteResult): Color? = when (result) {
-    WriteResult.SUCCESS -> Color(0xFF4CAF50)
-    WriteResult.PARTIAL -> Color(0xFFFFB300)
-    WriteResult.FAILED -> Color(0xFFEF5350)
+    WriteResult.SUCCESS -> Color(0xFF48C774)
+    WriteResult.PARTIAL -> Color(0xFFFFB95F)
+    WriteResult.FAILED -> Color(0xFFFF6B63)
     WriteResult.NEVER_USED -> null
 }
 
@@ -47,236 +80,121 @@ fun VendorCard(
     modifier: Modifier = Modifier
 ) {
     val categoryColor = getCategoryColor(vendor.category)
-
-    val statusColor = writeStatusColor(vendor.lastWriteResult)
     var menuExpanded by remember { mutableStateOf(false) }
-
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.95f else 1f, label = "card_scale")
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "vendor_card_scale")
 
-    Box(modifier = modifier.height(176.dp).scale(scale)) {
-        Card(
-            onClick = onClick,
-            interactionSource = interactionSource,
-            modifier = Modifier
-                .fillMaxSize()
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            categoryColor.copy(alpha = 0.4f),
-                            categoryColor.copy(alpha = 0.08f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                ),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            ),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = 2.dp,
-                pressedElevation = 6.dp
+    Card(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(204.dp)
+            .scale(scale)
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(listOf(categoryColor.copy(alpha = 0.5f), MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))),
+                shape = MaterialTheme.shapes.large
             )
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Top accent bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(
-                                    categoryColor,
-                                    categoryColor.copy(alpha = 0.3f)
-                                )
+            .semantics { role = Role.Button },
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 5.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(Brush.horizontalGradient(listOf(categoryColor, categoryColor.copy(alpha = 0.15f))))
+            )
+            Column(
+                modifier = Modifier.fillMaxSize().padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                    VendorCircleIcon(vendor.iconUri, vendor.category, categoryColor, size = 52.dp)
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Azioni per ${vendor.name}")
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Modifica") },
+                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                onClick = { menuExpanded = false; onEditClick() }
                             )
-                        )
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                )
-
-                // Left status border
-                if (statusColor != null) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .fillMaxHeight(0.6f)
-                            .width(3.dp)
-                            .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
-                            .background(statusColor)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 16.dp, start = 12.dp, end = 12.dp, bottom = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Icon — custom image or category fallback
-                    VendorCircleIcon(
-                        iconUri = vendor.iconUri,
-                        category = vendor.category,
-                        categoryColor = categoryColor,
-                        size = 56.dp
-                    )
-
-                    // Name + subtitle (always reserve subtitle space for uniform height)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = vendor.name,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = vendor.subtitle ?: " ",
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            DropdownMenuItem(
+                                text = { Text("Duplica") },
+                                leadingIcon = { Icon(Icons.Filled.FileCopy, contentDescription = null) },
+                                onClick = { menuExpanded = false; onDuplicateClick() }
+                            )
+                        }
                     }
-
-                    // Badge
-                    WriteStatusBadge(result = vendor.lastWriteResult, writeCount = vendor.writeCount)
                 }
-            }
-        }
-
-        // Options menu — top-right overlay
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 6.dp, end = 2.dp)
-        ) {
-            IconButton(
-                onClick = { menuExpanded = true },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Filled.MoreVert,
-                    contentDescription = "Opzioni",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Modifica") },
-                    onClick = {
-                        menuExpanded = false
-                        onEditClick()
-                    },
-                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }
-                )
-                DropdownMenuItem(
-                    text = { Text("Duplica") },
-                    onClick = {
-                        menuExpanded = false
-                        onDuplicateClick()
-                    },
-                    leadingIcon = { Icon(Icons.Filled.FileCopy, contentDescription = null) }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(vendor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        vendor.subtitle ?: vendor.category.displayName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    WriteStatusBadge(vendor.lastWriteResult, vendor.writeCount)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Apri", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun WriteStatusBadge(
-    result: WriteResult,
-    writeCount: Int,
-    modifier: Modifier = Modifier
-) {
-    val (bgColor, textColor, label) = when (result) {
-        WriteResult.SUCCESS -> Triple(
-            Color(0xFF2E7D32).copy(alpha = 0.15f),
-            Color(0xFF4CAF50),
-            "✓ $writeCount"
-        )
-        WriteResult.PARTIAL -> Triple(
-            Color(0xFFF57F17).copy(alpha = 0.15f),
-            Color(0xFFFFB300),
-            "⚠ Parziale"
-        )
-        WriteResult.FAILED -> Triple(
-            Color(0xFFC62828).copy(alpha = 0.15f),
-            Color(0xFFEF5350),
-            "✗ Errore"
-        )
-        WriteResult.NEVER_USED -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            "Mai usato"
-        )
+fun WriteStatusBadge(result: WriteResult, writeCount: Int, modifier: Modifier = Modifier) {
+    val statusColor = writeStatusColor(result) ?: MaterialTheme.colorScheme.onSurfaceVariant
+    val label = when (result) {
+        WriteResult.SUCCESS -> "Verificato · $writeCount"
+        WriteResult.PARTIAL -> "Parziale"
+        WriteResult.FAILED -> "Errore"
+        WriteResult.NEVER_USED -> "Mai usato"
     }
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(6.dp),
-        color = bgColor
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Medium,
-            color = textColor
-        )
+    Surface(modifier = modifier, shape = CircleShape, color = statusColor.copy(alpha = 0.14f)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(statusColor))
+            Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = statusColor)
+        }
     }
 }
 
-/**
- * Circular vendor icon — shows a custom AsyncImage if [iconUri] is set,
- * otherwise falls back to the category vector icon.
- */
 @Composable
 fun VendorCircleIcon(
     iconUri: String?,
     category: VendorCategory,
     categoryColor: Color,
-    size: Dp = 56.dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    size: Dp = 56.dp
 ) {
     Box(
         modifier = modifier
             .size(size)
-            .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        categoryColor.copy(alpha = 0.9f),
-                        categoryColor.copy(alpha = 0.55f)
-                    )
-                )
-            ),
+            .clip(MaterialTheme.shapes.medium)
+            .background(Brush.linearGradient(listOf(categoryColor.copy(alpha = 0.95f), categoryColor.copy(alpha = 0.58f)))),
         contentAlignment = Alignment.Center
     ) {
         if (!iconUri.isNullOrBlank()) {
-            AsyncImage(
-                model = iconUri,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().clip(CircleShape)
-            )
+            AsyncImage(model = iconUri, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium))
         } else {
-            Icon(
-                imageVector = getCategoryIcon(category),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(size * 0.5f)
-            )
+            Icon(getCategoryIcon(category), contentDescription = null, tint = Color.White, modifier = Modifier.size(size * 0.5f))
         }
     }
 }
@@ -292,10 +210,10 @@ fun getCategoryIcon(category: VendorCategory): ImageVector = when (category) {
 
 @Composable
 fun getCategoryColor(category: VendorCategory): Color = when (category) {
-    VendorCategory.CAR_WASH -> Color(0xFF1565C0)
-    VendorCategory.GYM -> Color(0xFF2E7D32)
-    VendorCategory.VENDING -> Color(0xFF8B5000)
-    VendorCategory.ACCESS_CONTROL -> Color(0xFFC62828)
-    VendorCategory.PARKING -> Color(0xFF6A1B9A)
+    VendorCategory.CAR_WASH -> Color(0xFF168AAD)
+    VendorCategory.GYM -> Color(0xFF2B9360)
+    VendorCategory.VENDING -> Color(0xFFAA6D13)
+    VendorCategory.ACCESS_CONTROL -> Color(0xFFB84A4A)
+    VendorCategory.PARKING -> Color(0xFF7268B5)
     VendorCategory.CUSTOM -> MaterialTheme.colorScheme.primary
 }

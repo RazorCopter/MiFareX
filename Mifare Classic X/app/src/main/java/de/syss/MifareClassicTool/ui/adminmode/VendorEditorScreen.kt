@@ -33,6 +33,8 @@ import de.syss.MifareClassicTool.data.model.TagType
 import de.syss.MifareClassicTool.data.model.VendorCategory
 import de.syss.MifareClassicTool.ui.components.getCategoryColor
 import de.syss.MifareClassicTool.ui.components.getCategoryIcon
+import de.syss.MifareClassicTool.ui.components.MctxModeBadge
+import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
 
 /**
  * Screen for creating or editing a Vendor configuration.
@@ -67,10 +69,14 @@ fun VendorEditorScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (isEditing) "Modifica Vendor" else "Nuovo Vendor")
+                    Column {
+                        Text(if (isEditing) "Modifica Vendor" else "Nuovo Vendor")
+                        Text("Configurazione profilo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
@@ -96,26 +102,25 @@ fun VendorEditorScreen(
                     ) {
                         Text("Salva", fontWeight = FontWeight.Bold)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             )
         }
     ) { padding ->
-        if (viewModel.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+        PremiumScreenBackground(modifier = Modifier.padding(padding)) {
+            if (viewModel.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 840.dp)
+                        .align(Alignment.TopCenter)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    MctxModeBadge(if (isEditing) "Admin · Modifica" else "Admin · Nuovo profilo")
                 // === Icon Section ===
                 VendorIconSection(
                     iconUri = viewModel.iconUri,
@@ -231,6 +236,7 @@ fun VendorEditorScreen(
                 PayloadBlocksSection(viewModel)
 
                 Spacer(modifier = Modifier.height(32.dp))
+                }
             }
         }
     }

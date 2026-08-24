@@ -1,315 +1,261 @@
 package de.syss.MifareClassicTool.ui.usermode
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
+import de.syss.MifareClassicTool.ui.components.MctxModeBadge
+import de.syss.MifareClassicTool.ui.components.NfcProgressStepper
+import de.syss.MifareClassicTool.ui.components.NfcRingsAnimation
+import de.syss.MifareClassicTool.ui.components.NfcStatusBadge
+import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Suppress("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun AutoModeScreen(
-    onBackClick: () -> Unit,
-    viewModel: VendorWriteViewModel
-) {
+fun AutoModeScreen(onBackClick: () -> Unit, viewModel: VendorWriteViewModel) {
     val autoState by viewModel.autoModeState.collectAsStateWithLifecycle()
 
-    // Start listening when screen appears, stop when it disappears
     DisposableEffect(Unit) {
         viewModel.startAutoMode()
         onDispose { viewModel.stopAutoMode() }
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = { Text("Auto Mode") },
+                title = {
+                    Column {
+                        Text("Auto Mode")
+                        Text("Flusso operatore continuo", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Indietro")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Indietro")
                     }
-                }
+                },
+                actions = { NfcStatusBadge(modifier = Modifier.padding(end = 12.dp)) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             )
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center
-        ) {
-            when (val s = autoState) {
-                is AutoModeState.Off -> Unit
-
-                is AutoModeState.Listening -> ListeningPanel()
-
-                is AutoModeState.Writing -> WritingPanel(vendorName = s.vendorName)
-
-                is AutoModeState.Done -> DonePanel(
-                    vendorName = s.vendorName,
-                    result = s.result,
-                    onContinue = { viewModel.resetAutoMode() }
-                )
-
-                is AutoModeState.UnknownUid -> UnknownUidDialog(
-                    uid = s.uid,
-                    viewModel = viewModel,
-                    onDismiss = { viewModel.dismissUnknownUid() }
-                )
+        PremiumScreenBackground(modifier = Modifier.padding(padding)) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                when (val state = autoState) {
+                    is AutoModeState.Off -> Unit
+                    is AutoModeState.Listening -> ListeningPanel()
+                    is AutoModeState.Writing -> WritingPanel(state.vendorName)
+                    is AutoModeState.Done -> DonePanel(state.vendorName, state.result) { viewModel.resetAutoMode() }
+                    is AutoModeState.UnknownUid -> UnknownUidDialog(
+                        uid = state.uid,
+                        viewModel = viewModel,
+                        onDismiss = viewModel::dismissUnknownUid
+                    )
+                }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────
-//  Listening panel — pulsating NFC icon
-// ─────────────────────────────────────────────
 @Composable
 private fun ListeningPanel() {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier.padding(32.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Nfc,
-            contentDescription = null,
-            modifier = Modifier.size((80 * scale).dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
-        )
+    OperationCard {
+        MctxModeBadge("Auto mode armato")
+        NfcRingsAnimation(color = MaterialTheme.colorScheme.primary, isWriting = false, size = 144.dp)
+        Text("In ascolto", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(
-            "In ascolto…",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            "Avvicina un tag NFC al telefono.\nViene programmato automaticamente\nse l'UID è registrato.",
+            "Avvicina un tag. Se l’UID è registrato, MiFareX seleziona il profilo e avvia la procedura verificata.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+        NfcProgressStepper(activeStep = 0)
+        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.tertiaryContainer) {
+            Text(
+                "Un solo tag alla volta · mantienilo fermo fino al risultato",
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
-// ─────────────────────────────────────────────
-//  Writing panel
-// ─────────────────────────────────────────────
 @Composable
 private fun WritingPanel(vendorName: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-        modifier = Modifier.padding(32.dp)
-    ) {
-        CircularProgressIndicator(modifier = Modifier.size(64.dp), strokeWidth = 5.dp)
-        Text(
-            "Scrittura in corso…",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            vendorName,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            "Non allontanare il tag!",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    OperationCard {
+        MctxModeBadge("Operazione in corso")
+        NfcProgressStepper(activeStep = 1)
+        NfcRingsAnimation(color = MaterialTheme.colorScheme.primary, isWriting = true, size = 132.dp)
+        Text("Scrittura e verifica", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(vendorName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text("Non rimuovere il tag", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-// ─────────────────────────────────────────────
-//  Done panel
-// ─────────────────────────────────────────────
 @Composable
-private fun DonePanel(
-    vendorName: String,
-    result: WriteOperationResult,
-    onContinue: () -> Unit
-) {
-    val isSuccess = result is WriteOperationResult.Success
-    val isPartial = result is WriteOperationResult.Partial
+private fun DonePanel(vendorName: String, result: WriteOperationResult, onContinue: () -> Unit) {
+    val success = result is WriteOperationResult.Success
+    val partial = result is WriteOperationResult.Partial
     val iconColor = when {
-        isSuccess -> Color(0xFF2E7D32)
-        isPartial -> Color(0xFFF57F17)
-        else -> Color(0xFFC62828)
+        success -> Color(0xFF48C774)
+        partial -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
     }
     val icon = when {
-        isSuccess -> Icons.Filled.CheckCircle
-        isPartial -> Icons.Filled.Warning
+        success -> Icons.Filled.CheckCircle
+        partial -> Icons.Filled.Warning
         else -> Icons.Filled.Error
     }
     val label = when {
-        isSuccess -> "Scrittura completata!"
-        isPartial -> "Scrittura parziale"
+        success -> "Scrittura verificata"
+        partial -> "Scrittura parziale"
         else -> "Scrittura fallita"
     }
-
-    // Haptic feedback on result — differentiated pattern per outcome
     val haptic = LocalHapticFeedback.current
     LaunchedEffect(result) {
-        when {
-            isSuccess -> {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                kotlinx.coroutines.delay(120)
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            }
-            isPartial -> {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            }
-            else -> {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                kotlinx.coroutines.delay(80)
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            }
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        if (success) {
+            kotlinx.coroutines.delay(120)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.padding(32.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(72.dp))
-        Text(label, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text(
-            vendorName,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        // Detail message for non-success
-        if (!isSuccess) {
+    OperationCard {
+        NfcProgressStepper(activeStep = 2)
+        Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(68.dp))
+        Text(label, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(vendorName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        if (success) {
+            MctxModeBadge("Read-back completato")
+        } else {
             val detail = when (result) {
                 is WriteOperationResult.Error -> result.message
-                is WriteOperationResult.Partial ->
-                    "${result.blocksWritten}/${result.totalBlocks} blocchi scritti"
-                is WriteOperationResult.PreflightFailed ->
-                    preflightResultToUiText(result.reason).second
+                is WriteOperationResult.Partial -> "${result.blocksWritten}/${result.totalBlocks} blocchi scritti"
+                is WriteOperationResult.PreflightFailed -> preflightResultToUiText(result.reason).second
                 else -> ""
             }
-            if (detail.isNotBlank()) {
-                Text(
-                    detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Filled.Nfc, null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Prossimo Tag")
+        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Continua con il prossimo tag")
         }
     }
 }
 
-// ─────────────────────────────────────────────
-//  Unknown UID dialog
-// ─────────────────────────────────────────────
+@Composable
+private fun OperationCard(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(24.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            content = content
+        )
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UnknownUidDialog(
-    uid: String,
-    viewModel: VendorWriteViewModel,
-    onDismiss: () -> Unit
-) {
+private fun UnknownUidDialog(uid: String, viewModel: VendorWriteViewModel, onDismiss: () -> Unit) {
     val vendors by viewModel.getAllVendors().collectAsStateWithLifecycle(initialValue = emptyList())
     var selectedVendor by remember { mutableStateOf<VendorEntity?>(null) }
     var dropdownExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
-    // We don't have a Tag reference here — store it in ViewModel when UnknownUid fires
-    // The dialog only associates; writing happens on next tap with known UID
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(Icons.Filled.Nfc, null, tint = MaterialTheme.colorScheme.primary)
-        },
-        title = {
-            Text("Nuovo UID rilevato", fontWeight = FontWeight.Bold)
-        },
+        icon = { Icon(Icons.Filled.Nfc, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary) },
+        title = { Text("UID non riconosciuto") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
+                MctxModeBadge("Richiede associazione", expert = true)
+                Text("Il tag non è associato. Scegli un vendor: la scrittura avverrà soltanto al prossimo avvicinamento.")
+                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                     Text(
-                        text = uid.uppercase().chunked(2).joinToString(" "),
+                        uid.uppercase().chunked(2).joinToString(" "),
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center
                     )
                 }
-                Text(
-                    "Questo tag non è associato ad alcun vendor. Vuoi associarlo ora per scriverci in futuro?",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                ExposedDropdownMenuBox(
-                    expanded = dropdownExpanded,
-                    onExpandedChange = { dropdownExpanded = !dropdownExpanded }
-                ) {
+                ExposedDropdownMenuBox(expanded = dropdownExpanded, onExpandedChange = { dropdownExpanded = it }) {
                     OutlinedTextField(
-                        value = selectedVendor?.name ?: "Seleziona Vendor...",
+                        value = selectedVendor?.name ?: "Seleziona vendor",
                         onValueChange = {},
                         readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownExpanded) }
                     )
-                    ExposedDropdownMenu(
-                        expanded = dropdownExpanded,
-                        onDismissRequest = { dropdownExpanded = false }
-                    ) {
+                    ExposedDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
                         vendors.forEach { vendor ->
                             DropdownMenuItem(
                                 text = { Text(vendor.name) },
-                                onClick = {
-                                    selectedVendor = vendor
-                                    dropdownExpanded = false
-                                }
+                                onClick = { selectedVendor = vendor; dropdownExpanded = false }
                             )
                         }
                     }
@@ -317,21 +263,14 @@ private fun UnknownUidDialog(
             }
         },
         confirmButton = {
-            val context = LocalContext.current
             Button(
+                enabled = selectedVendor != null,
                 onClick = {
-                    selectedVendor?.let { vendor ->
-                        viewModel.associateUidOnly(uid, vendor.id, context)
-                        onDismiss()
-                    }
-                },
-                enabled = selectedVendor != null
-            ) {
-                Text("Associa")
-            }
+                    selectedVendor?.let { viewModel.associateUidOnly(uid, it.id, context) }
+                    onDismiss()
+                }
+            ) { Text("Associa UID") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annulla") }
-        }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
     )
 }

@@ -1,54 +1,86 @@
 package de.syss.MifareClassicTool.ui.onboarding
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import de.syss.MifareClassicTool.ui.components.MctxModeBadge
+import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(
     val icon: ImageVector,
-    val accentColor: Color,
+    val eyebrow: String,
     val title: String,
-    val description: String
+    val description: String,
+    val detail: String
 )
 
 private val pages = listOf(
     OnboardingPage(
         icon = Icons.Filled.Badge,
-        accentColor = Color(0xFF1565C0),
-        title = "Cos'è un Vendor?",
-        description = "Un Vendor raggruppa le chiavi e i dati da scrivere su un tag MIFARE Classic. Ogni tessera (palestra, parcheggio, lavaggio auto…) ha il suo Vendor."
-    ),
-    OnboardingPage(
-        icon = Icons.Filled.Tune,
-        accentColor = Color(0xFF2E7D32),
-        title = "Configurazione",
-        description = "Nella sezione Admin aggiungi le chiavi di settore e i blocchi da scrivere. Puoi anche importare configurazioni esistenti tramite JSON."
+        eyebrow = "Profili verificabili",
+        title = "Configura una volta. Opera con precisione.",
+        description = "Ogni vendor raccoglie tipo di tag, chiavi e payload in un profilo controllato.",
+        detail = "Le configurazioni restano locali sul dispositivo."
     ),
     OnboardingPage(
         icon = Icons.Filled.Nfc,
-        accentColor = Color(0xFF6A1B9A),
-        title = "Scrittura & Auto Mode",
-        description = "Seleziona un Vendor e avvicina il tag al telefono per programmarlo. Con Auto Mode i tag vengono riconosciuti e scritti automaticamente dall'UID."
+        eyebrow = "Flusso guidato",
+        title = "Avvicina il tag solo quando richiesto.",
+        description = "MiFareX verifica compatibilità, contesto e risultato durante ogni operazione NFC.",
+        detail = "Mantieni il tag fermo fino alla conferma finale."
+    ),
+    OnboardingPage(
+        icon = Icons.Filled.Security,
+        eyebrow = "Ruoli separati",
+        title = "Operatore, Admin ed Expert.",
+        description = "La modalità Operatore è essenziale; configurazione e strumenti raw sono isolati nelle aree dedicate.",
+        detail = "Expert Mode modifica dati a basso livello: usala consapevolmente."
     )
 )
 
@@ -57,87 +89,49 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val scope = rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { pageIndex ->
+    PremiumScreenBackground(modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { pageIndex ->
             OnboardingPageContent(page = pages[pageIndex])
         }
 
-        // Skip button — top right
-        TextButton(
-            onClick = onFinish,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
+        Row(
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Salta", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                Text("MiFareX", style = MaterialTheme.typography.titleLarge)
+                Text("NFC OPERATIONS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            TextButton(onClick = onFinish) { Text("Salta introduzione") }
         }
 
-        // Bottom controls
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Page indicators
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                pages.indices.forEach { i ->
-                    val isSelected = pagerState.currentPage == i
-                    val width by animateDpAsState(
-                        targetValue = if (isSelected) 24.dp else 8.dp,
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                        label = "indicator_$i"
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                pages.indices.forEach { index ->
+                    val selected = pagerState.currentPage == index
+                    val width by animateDpAsState(if (selected) 28.dp else 8.dp, spring(), label = "page_indicator_$index")
                     Box(
-                        modifier = Modifier
-                            .height(8.dp)
-                            .width(width)
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) pages[pagerState.currentPage].accentColor
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                            )
+                        Modifier.height(7.dp).width(width).clip(CircleShape).background(
+                            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        )
                     )
                 }
             }
-
-            // Next / Get started button
-            val isLast = pagerState.currentPage == pages.lastIndex
+            val lastPage = pagerState.currentPage == pages.lastIndex
             Button(
                 onClick = {
-                    if (isLast) {
-                        onFinish()
-                    } else {
-                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                    }
+                    if (lastPage) onFinish()
+                    else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                 },
-                modifier = Modifier
-                    .padding(horizontal = 32.dp)
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = pages[pagerState.currentPage].accentColor
-                )
+                modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp).height(52.dp)
             ) {
-                AnimatedContent(
-                    targetState = isLast,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "btn_label"
-                ) { last ->
-                    Text(
-                        text = if (last) "Inizia" else "Avanti",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                AnimatedContent(lastPage, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "onboarding_action") {
+                    Text(if (it) "Accedi a MiFareX" else "Continua")
                 }
             }
         }
@@ -146,66 +140,64 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
 @Composable
 private fun OnboardingPageContent(page: OnboardingPage) {
-    val infiniteTransition = rememberInfiniteTransition(label = "icon_pulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(top = 64.dp, bottom = 104.dp)) {
+        val wide = maxWidth >= 700.dp
+        if (wide) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 56.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(48.dp)
+            ) {
+                OnboardingVisual(page, Modifier.weight(0.9f).fillMaxHeight())
+                OnboardingCopy(page, Modifier.weight(1.1f))
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                OnboardingVisual(page, Modifier.fillMaxWidth().weight(0.9f))
+                OnboardingCopy(page, Modifier.fillMaxWidth().weight(1.1f))
+            }
+        }
+    }
+}
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Animated icon with radial background
+@Composable
+private fun OnboardingVisual(page: OnboardingPage, modifier: Modifier = Modifier) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
                 .size(160.dp)
-                .clip(CircleShape)
+                .clip(MaterialTheme.shapes.extraLarge)
                 .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            page.accentColor.copy(alpha = 0.25f),
-                            page.accentColor.copy(alpha = 0.05f)
-                        )
+                    Brush.linearGradient(
+                        listOf(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer)
                     )
-                )
-                .scale(scale),
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = page.icon,
-                contentDescription = null,
-                tint = page.accentColor,
-                modifier = Modifier.size(72.dp)
-            )
+            Icon(page.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(76.dp))
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = page.description,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-        )
+@Composable
+private fun OnboardingCopy(page: OnboardingPage, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        MctxModeBadge(page.eyebrow)
+        Spacer(Modifier.height(18.dp))
+        Text(page.title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(12.dp))
+        Text(page.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(18.dp))
+        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Text(page.detail, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        }
     }
 }
