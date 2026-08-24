@@ -104,7 +104,8 @@ fun VendorDetailScreen(
                         IconButton(onClick = onEditClick) {
                             Icon(Icons.Filled.Edit, "Modifica")
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
             }
         ) { padding ->
@@ -347,9 +348,6 @@ private fun VendorDetailContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(184.dp)
-                    .graphicsLayer {
-                        translationY = scrollState.value * 0.5f
-                    }
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -404,10 +402,9 @@ private fun VendorDetailContent(
                 }
                 InfoCard(icon = Icons.Filled.History, label = "Scritture effettuate", value = "${vendor.writeCount}")
             }
-            Spacer(modifier = Modifier.height(if (hasKeys) 190.dp else 126.dp))
+            Spacer(modifier = Modifier.height(if (hasKeys) 160.dp else 100.dp))
         }
 
-        // Pinned action button — glassmorphism overlay
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -417,21 +414,21 @@ private fun VendorDetailContent(
                     Brush.verticalGradient(
                         colors = listOf(
                             MaterialTheme.colorScheme.surface.copy(alpha = 0.0f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                             MaterialTheme.colorScheme.surface
                         )
                     )
                 )
         ) {
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                 if (!isWritable) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -452,14 +449,14 @@ private fun VendorDetailContent(
                 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
                         onClick = onStartDryRun,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
                         colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Simula operazione")
                     }
@@ -468,11 +465,11 @@ private fun VendorDetailContent(
                         enabled = isWritable,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = categoryColor)
                     ) {
-                        Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Filled.Nfc, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             "Programma Tag",
@@ -482,12 +479,12 @@ private fun VendorDetailContent(
                     }
                     if (hasKeys) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = onStartRead, modifier = Modifier.weight(1f).height(48.dp)) {
+                            OutlinedButton(onClick = onStartRead, modifier = Modifier.weight(1f).height(42.dp)) {
                                 Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Leggi")
                             }
-                            OutlinedButton(onClick = onStartTest, modifier = Modifier.weight(1f).height(48.dp)) {
+                            OutlinedButton(onClick = onStartTest, modifier = Modifier.weight(1f).height(42.dp)) {
                                 Icon(Icons.Filled.Key, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Test chiavi")
