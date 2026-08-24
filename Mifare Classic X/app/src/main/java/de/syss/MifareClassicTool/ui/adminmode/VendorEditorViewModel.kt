@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.syss.MifareClassicTool.data.model.*
 import de.syss.MifareClassicTool.data.repository.VendorRepository
+import de.syss.MifareClassicTool.data.security.VendorIconStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,8 +81,8 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
     fun onIconPicked(sourceUri: Uri) {
         viewModelScope.launch {
             val ctx = getApplication<Application>()
-            val iconsDir = File(ctx.filesDir, "vendor_icons").also { it.mkdirs() }
-            val targetFile = File(iconsDir, "${System.currentTimeMillis()}.jpg")
+            val iconsDir = VendorIconStorage.directory(ctx)
+            val targetFile = File(iconsDir, "${UUID.randomUUID()}.jpg")
             // Copy on IO — only update state after confirmed success
             val copied = withContext(Dispatchers.IO) {
                 runCatching {
@@ -94,7 +95,9 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
             if (copied) {
                 // Delete old icon only after new one is confirmed written
                 val old = iconUri
-                if (old != null) withContext(Dispatchers.IO) { runCatching { File(old).delete() } }
+                if (old != null) withContext(Dispatchers.IO) {
+                    VendorIconStorage.deleteManaged(ctx, old)
+                }
                 // mutableStateOf write always on main thread (launch default dispatcher = Main)
                 iconUri = targetFile.absolutePath
             }
@@ -105,7 +108,9 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
     fun removeIcon() {
         val old = iconUri
         iconUri = null
-        if (old != null) viewModelScope.launch(Dispatchers.IO) { runCatching { File(old).delete() } }
+        if (old != null) viewModelScope.launch(Dispatchers.IO) {
+            VendorIconStorage.deleteManaged(getApplication(), old)
+        }
     }
 
     /**
@@ -188,7 +193,9 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
             repository.deleteVendor(id)
             // Clean up icon file from internal storage
             val icon = iconUri
-            if (icon != null) withContext(Dispatchers.IO) { runCatching { File(icon).delete() } }
+            if (icon != null) withContext(Dispatchers.IO) {
+                VendorIconStorage.deleteManaged(getApplication(), icon)
+            }
             isLoading = false
             isDeleted = true
         }

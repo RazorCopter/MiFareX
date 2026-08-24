@@ -4,7 +4,10 @@ import android.app.Application
 import android.nfc.Tag
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import de.syss.MifareClassicTool.bridge.NfcBridge
+import de.syss.MifareClassicTool.bridge.AndroidNfcTagHandle
+import de.syss.MifareClassicTool.bridge.AndroidVendorNfcGateway
+import de.syss.MifareClassicTool.bridge.NfcTagHandle
+import de.syss.MifareClassicTool.bridge.VendorNfcGateway
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.data.model.WriteResult
 import de.syss.MifareClassicTool.data.repository.VendorRepository
@@ -66,7 +69,10 @@ sealed class AutoModeState {
     data class UnknownUid(val uid: String) : AutoModeState()
 }
 
-class VendorWriteViewModel(application: Application) : AndroidViewModel(application) {
+class VendorWriteViewModel @JvmOverloads constructor(
+    application: Application,
+    private val nfcGateway: VendorNfcGateway = AndroidVendorNfcGateway()
+) : AndroidViewModel(application) {
 
     companion object {
         private const val OPERATION_TIMEOUT_MILLIS = 30_000L
@@ -75,7 +81,6 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private val repository = VendorRepository(application)
-    private val nfcBridge = NfcBridge()
     private val sessionCoordinator = NfcOperationSessionCoordinator()
     private var timeoutJob: Job? = null
     private var operationJob: Job? = null
@@ -255,6 +260,10 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     // ===== NFC tag dispatch (called from ComposeActivity.onNewIntent) =====
 
     fun onTagDiscovered(tag: Tag) {
+        onTagDiscovered(AndroidNfcTagHandle(tag))
+    }
+
+    internal fun onTagDiscovered(tag: NfcTagHandle) {
         val session = sessionCoordinator.claimNextTag() ?: return
         timeoutJob?.cancel()
 
@@ -278,7 +287,7 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun handleManualTag(tag: Tag, session: NfcOperationSession) {
+    private fun handleManualTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
@@ -288,7 +297,7 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
             }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
-            val result = nfcBridge.executeVendorWriteWithPreflight(tag, keys, payload, vendor.tagType)
+            val result = nfcGateway.write(tag, keys, payload, vendor.tagType)
 
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
 
@@ -308,7 +317,7 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun handleTestKeysTag(tag: Tag, session: NfcOperationSession) {
+    private fun handleTestKeysTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
@@ -318,14 +327,14 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
             }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
-            val result = nfcBridge.runPreflightOnly(tag, keys, payload, vendor.tagType)
+            val result = nfcGateway.preflight(tag, keys, payload, vendor.tagType)
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             _testState.value = NfcTestState.Result(result)
             sessionCoordinator.finish(session.token)
         }
     }
 
-    private fun handleReadTag(tag: Tag, session: NfcOperationSession) {
+    private fun handleReadTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
@@ -334,7 +343,7 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
                 return@launch
             }
             val keys = repository.parseKeys(vendor)
-            val dump = nfcBridge.readVendorDump(tag, keys)
+            val dump = nfcGateway.read(tag, keys)
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             if (dump != null) {
                 _readState.value = NfcReadState.Success(dump)
@@ -345,8 +354,8 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun handleAutoModeTag(tag: Tag, session: NfcOperationSession) {
-        val uid = tag.id.toHexString()
+    private fun handleAutoModeTag(tag: NfcTagHandle, session: NfcOperationSession) {
+        val uid = tag.uid.toHexString()
 
         operationJob = viewModelScope.launch {
             val vendor = repository.getVendorByUid(uid)
@@ -362,12 +371,12 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private suspend fun executeAutoWrite(tag: Tag, vendor: VendorEntity) {
+    private suspend fun executeAutoWrite(tag: NfcTagHandle, vendor: VendorEntity) {
         // Writing state already set by caller
 
         val keys = repository.parseKeys(vendor)
         val payload = repository.parsePayload(vendor)
-        val result = nfcBridge.executeVendorWriteWithPreflight(tag, keys, payload, vendor.tagType)
+        val result = nfcGateway.write(tag, keys, payload, vendor.tagType)
 
         val writeResult = when (result) {
             is WriteOperationResult.Success -> WriteResult.SUCCESS

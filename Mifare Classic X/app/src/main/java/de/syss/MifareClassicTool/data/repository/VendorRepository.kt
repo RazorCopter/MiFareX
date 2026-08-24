@@ -5,6 +5,7 @@ import de.syss.MifareClassicTool.data.db.AppDatabase
 import de.syss.MifareClassicTool.data.db.UidDao
 import de.syss.MifareClassicTool.data.db.VendorDao
 import de.syss.MifareClassicTool.data.model.*
+import de.syss.MifareClassicTool.data.security.VendorIconStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
@@ -16,6 +17,8 @@ import java.util.UUID
  * and JSON serialization.
  */
 class VendorRepository(context: Context) {
+
+    private val appContext = context.applicationContext
 
     private val dao: VendorDao = AppDatabase.getInstance(context).vendorDao()
     private val uidDao: UidDao = AppDatabase.getInstance(context).uidDao()
@@ -103,7 +106,7 @@ class VendorRepository(context: Context) {
             id = config.id.ifBlank { UUID.randomUUID().toString() },
             name = config.name,
             subtitle = config.subtitle,
-            iconUri = config.iconUri,
+            iconUri = VendorIconStorage.sanitizePath(appContext, config.iconUri),
             category = config.category,
             notes = config.notes,
             tagType = config.tagType,
