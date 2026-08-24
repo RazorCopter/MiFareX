@@ -213,7 +213,7 @@ private fun StatCard(
     modifier: Modifier = Modifier,
     title: String,
     value: String,
-    icon: androidx.compose.material.icons.Icons.Filled,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     color: Color
 ) {
     Card(
