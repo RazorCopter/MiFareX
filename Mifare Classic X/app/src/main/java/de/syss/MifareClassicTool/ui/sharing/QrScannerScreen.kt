@@ -133,73 +133,95 @@ fun QrScannerScreen(
                     )
                 }
 
-                LaunchedEffect(previewView) {
-                    try {
-                        val cameraProvider = ProcessCameraProvider.getInstance(context).await()
-                        val preview = Preview.Builder().build()
-                        preview.setSurfaceProvider(previewView.surfaceProvider)
+                DisposableEffect(lifecycleOwner) {
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                    val executor = Executors.newSingleThreadExecutor()
+                    val reader = MultiFormatReader()
 
-                        val cameraSelector = CameraSelector.Builder()
-                            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-                            .build()
+                    cameraProviderFuture.addListener({
+                        try {
+                            val cameraProvider = cameraProviderFuture.get()
+                            val preview = Preview.Builder().build()
+                            preview.setSurfaceProvider(previewView.surfaceProvider)
 
-                        val imageAnalysis = ImageAnalysis.Builder()
-                            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_NV21)
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
+                            val cameraSelector = CameraSelector.Builder()
+                                .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                                .build()
 
-                        val executor = Executors.newSingleThreadExecutor()
-                        val reader = MultiFormatReader()
+                            val imageAnalysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
 
-                        imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                            if (!scanComplete && imageProxy.format == ImageFormat.NV21) {
-                                val planes = imageProxy.planes
-                                val buffer = planes[0].buffer
-                                val pixelStride = planes[0].pixelStride
-                                val width = imageProxy.width
-                                val height = imageProxy.height
+                            imageAnalysis.setAnalyzer(executor) { imageProxy ->
+                                if (!scanComplete) {
+                                    val planes = imageProxy.planes
+                                    val yPlane = planes[0]
+                                    val yBuffer = yPlane.buffer
+                                    val yBytes = ByteArray(yBuffer.remaining())
+                                    yBuffer.get(yBytes)
 
-                                try {
-                                    val data = ByteArray(buffer.remaining())
-                                    buffer.get(data)
+                                    try {
+                                        val source = com.google.zxing.PlanarYUVLuminanceSource(
+                                            yBytes,
+                                            imageProxy.width,
+                                            imageProxy.height,
+                                            0,
+                                            0,
+                                            imageProxy.width,
+                                            imageProxy.height,
+                                            false
+                                        )
+                                        val binaryBitmap = com.google.zxing.BinaryBitmap(
+                                            com.google.zxing.common.HybridBinarizer(source)
+                                        )
+                                        val result = reader.decodeWithState(binaryBitmap)
 
-                                    val source = com.google.zxing.PlanarYUVLuminanceSource(
-                                        data, width, height, 0, 0, width, height, false
-                                    )
-                                    val bitmap = com.google.zxing.common.HybridBinarizer(source).blackMatrix
-                                    val result = reader.decodeWithState(bitmap)
-
-                                    scanComplete = true
-                                    val vendor = QrCodeGenerator.decodeQrContent(result.text)
-                                    if (vendor != null) {
-                                        viewModel.importVendor(
-                                            vendor,
-                                            onSuccess = {
-                                                onVendorScanned(vendor)
-                                                onBackClick()
-                                            },
-                                            onError = { error ->
-                                                errorMessage = error
+                                        scanComplete = true
+                                        val vendor = QrCodeGenerator.decodeQrContent(result.text)
+                                        if (vendor != null) {
+                                            ContextCompat.getMainExecutor(context).execute {
+                                                viewModel.importVendor(
+                                                    vendor,
+                                                    onSuccess = {
+                                                        onVendorScanned(vendor)
+                                                        onBackClick()
+                                                    },
+                                                    onError = { error ->
+                                                        errorMessage = error
+                                                        scanComplete = false
+                                                    }
+                                                )
+                                            }
+                                        } else {
+                                            ContextCompat.getMainExecutor(context).execute {
+                                                errorMessage = "QR Code non valido"
                                                 scanComplete = false
                                             }
-                                        )
-                                    } else {
-                                        errorMessage = "QR Code non valido"
-                                        scanComplete = false
+                                        }
+                                        reader.reset()
+                                    } catch (_: NotFoundException) {
+                                        // Still scanning
+                                    } catch (_: Exception) {
+                                        // Ignore transient frame errors
                                     }
-                                    reader.reset()
-                                } catch (e: NotFoundException) {
-                                    // Still scanning
-                                } catch (e: Exception) {
-                                    // Silently continue
                                 }
+                                imageProxy.close()
                             }
-                            imageProxy.close()
-                        }
 
-                        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis)
-                    } catch (e: Exception) {
-                        errorMessage = "Errore nell'inizializzazione della fotocamera"
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                cameraSelector,
+                                preview,
+                                imageAnalysis
+                            )
+                        } catch (_: Exception) {
+                            errorMessage = "Errore nell'inizializzazione della fotocamera"
+                        }
+                    }, ContextCompat.getMainExecutor(context))
+
+                    onDispose {
+                        executor.shutdown()
                     }
                 }
             }
