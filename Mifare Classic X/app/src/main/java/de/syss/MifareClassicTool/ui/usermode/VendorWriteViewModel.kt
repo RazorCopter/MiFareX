@@ -121,9 +121,10 @@ class VendorWriteViewModel @JvmOverloads constructor(
 
     fun leaveVendorDetail(vendorId: String) {
         if (visibleVendorId == vendorId) {
-            sessionCoordinator.cancelOwner(vendorOwner(vendorId))
-            timeoutJob?.cancel()
-            operationJob?.cancel()
+            if (sessionCoordinator.cancelOwner(vendorOwner(vendorId))) {
+                timeoutJob?.cancel()
+                operationJob?.cancel()
+            }
             resetVendorStates()
             visibleVendorId = null
             currentVendor = null
@@ -229,9 +230,10 @@ class VendorWriteViewModel @JvmOverloads constructor(
         _autoModeState.value = AutoModeState.Listening
     }
     fun stopAutoMode() {
-        sessionCoordinator.cancelOwner(AUTO_MODE_OWNER)
-        timeoutJob?.cancel()
-        operationJob?.cancel()
+        if (sessionCoordinator.cancelOwner(AUTO_MODE_OWNER)) {
+            timeoutJob?.cancel()
+            operationJob?.cancel()
+        }
         _autoModeState.value = AutoModeState.Off
     }
     fun resetAutoMode() {
@@ -432,7 +434,10 @@ class VendorWriteViewModel @JvmOverloads constructor(
                 NfcOperationKind.MANUAL_WRITE -> _writeState.value = NfcWriteState.Idle
                 NfcOperationKind.TEST_KEYS -> _testState.value = NfcTestState.Idle
                 NfcOperationKind.READ_TAG -> _readState.value = NfcReadState.Idle
-                NfcOperationKind.AUTO_WRITE -> _autoModeState.value = AutoModeState.Off
+                NfcOperationKind.AUTO_WRITE -> {
+                    if (_autoModeState.value is AutoModeState.Listening) armAutoMode()
+                    else _autoModeState.value = AutoModeState.Off
+                }
             }
         }
     }
