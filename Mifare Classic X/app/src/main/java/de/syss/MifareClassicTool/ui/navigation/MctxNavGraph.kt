@@ -33,9 +33,12 @@ import de.syss.MifareClassicTool.ui.history.OperationHistoryScreen
 import de.syss.MifareClassicTool.ui.diagnostics.NfcDiagnosticsScreen
 import de.syss.MifareClassicTool.ui.stats.StatsScreen
 import de.syss.MifareClassicTool.ui.sharing.QrScannerScreen
+import de.syss.MifareClassicTool.ui.usermode.AddVendorSheet
 import de.syss.MifareClassicTool.Activities.MainMenu
 import de.syss.MifareClassicTool.Activities.Preferences
 import de.syss.MifareClassicTool.ui.theme.ThemeMode
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 
 object Routes {
     const val USER_MODE = "user_mode"
@@ -103,6 +106,16 @@ fun MctxNavGraph(
     onDynamicColorToggle: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
+    var showAddVendorSheet by remember { mutableStateOf(false) }
+
+    if (showAddVendorSheet) {
+        AddVendorSheet(
+            onManualCreate = { onNavigateToVendorEditor(null) },
+            onQrScan = { navController.navigate(Routes.QR_SCANNER) },
+            onDismiss = { showAddVendorSheet = false }
+        )
+    }
+
     NavHost(
         navController = navController,
         startDestination = Routes.VENDOR_GRID,
@@ -122,7 +135,7 @@ fun MctxNavGraph(
         composable(Routes.VENDOR_GRID) {
             VendorGridScreen(
                 onVendorClick = onNavigateToVendorDetail,
-                onAddVendorClick = { onNavigateToVendorEditor(null) },
+                onAddVendorClick = { showAddVendorSheet = true },
                 onEditVendorClick = { vendorId -> onNavigateToVendorEditor(vendorId) },
                 onImportExportClick = onNavigateToImportExport,
                 onHistoryClick = { navController.navigate(Routes.OPERATION_HISTORY) }

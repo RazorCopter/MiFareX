@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.NotFoundException
 import de.syss.MifareClassicTool.data.model.VendorEntity
@@ -33,7 +34,8 @@ import java.util.concurrent.Executors
 @Composable
 fun QrScannerScreen(
     onBackClick: () -> Unit,
-    onVendorScanned: (VendorEntity) -> Unit
+    onVendorScanned: (VendorEntity) -> Unit,
+    viewModel: QrImportViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -170,7 +172,17 @@ fun QrScannerScreen(
                                     scanComplete = true
                                     val vendor = QrCodeGenerator.decodeQrContent(result.text)
                                     if (vendor != null) {
-                                        onVendorScanned(vendor)
+                                        viewModel.importVendor(
+                                            vendor,
+                                            onSuccess = {
+                                                onVendorScanned(vendor)
+                                                onBackClick()
+                                            },
+                                            onError = { error ->
+                                                errorMessage = error
+                                                scanComplete = false
+                                            }
+                                        )
                                     } else {
                                         errorMessage = "QR Code non valido"
                                         scanComplete = false

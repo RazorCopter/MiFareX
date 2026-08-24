@@ -2,6 +2,7 @@ package de.syss.MifareClassicTool.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Room entity representing a Vendor configuration.
@@ -10,6 +11,7 @@ import androidx.room.PrimaryKey
  * to avoid complex relational mappings. TypeConverters handle
  * serialization/deserialization via kotlinx-serialization.
  */
+@Serializable
 @Entity(tableName = "vendors")
 data class VendorEntity(
     @PrimaryKey
