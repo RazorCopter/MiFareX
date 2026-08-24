@@ -221,7 +221,9 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
             onNavigateToVendorEditor = { vendorId ->
                 navController.navigate(Routes.vendorEditor(vendorId))
             },
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         )
     }
 }
