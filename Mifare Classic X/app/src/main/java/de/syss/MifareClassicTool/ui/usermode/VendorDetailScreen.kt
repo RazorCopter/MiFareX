@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.syss.MifareClassicTool.Activities.DumpEditor
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.domain.model.PreflightResult
+import de.syss.MifareClassicTool.domain.model.WritePlan
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
 import de.syss.MifareClassicTool.ui.components.NfcRingsAnimation
 import de.syss.MifareClassicTool.ui.components.MctxModeBadge
@@ -77,6 +78,8 @@ fun VendorDetailScreen(
 
     vendor?.let { v ->
         var showWriteConfirmation by remember(v.id) { mutableStateOf(false) }
+        var showDryRun by remember(v.id) { mutableStateOf(false) }
+        val writePlan = remember(v.keysJson, v.payloadJson, v.tagType) { viewModel.analyzeWritePlan(v) }
         val hasKeys = remember(v.keysJson) {
             try { v.keysJson != "[]" && v.keysJson.isNotBlank() } catch (_: Exception) { false }
         }
@@ -111,6 +114,10 @@ fun VendorDetailScreen(
                     isWritable = viewModel.vendorIsWritable(v),
                     hasKeys = hasKeys,
                     onStartWrite = { showWriteConfirmation = true },
+                    onStartDryRun = {
+                        viewModel.recordDryRun(v, writePlan)
+                        showDryRun = true
+                    },
                     onStartTest = { viewModel.startTestKeys() },
                     onStartRead = { viewModel.startReadFlow() },
                     modifier = Modifier.fillMaxSize()
@@ -284,11 +291,19 @@ fun VendorDetailScreen(
         if (showWriteConfirmation) {
             WriteConfirmationDialog(
                 vendor = v,
+                plan = writePlan,
                 onConfirm = {
                     showWriteConfirmation = false
                     viewModel.startWriteFlow()
                 },
                 onDismiss = { showWriteConfirmation = false }
+            )
+        }
+        if (showDryRun) {
+            WritePlanDialog(
+                vendor = v,
+                plan = writePlan,
+                onDismiss = { showDryRun = false }
             )
         }
     } ?: run {
@@ -308,6 +323,7 @@ private fun VendorDetailContent(
     isWritable: Boolean,
     hasKeys: Boolean,
     onStartWrite: () -> Unit,
+    onStartDryRun: () -> Unit,
     onStartTest: () -> Unit,
     onStartRead: () -> Unit,
     modifier: Modifier = Modifier
@@ -437,6 +453,14 @@ private fun VendorDetailContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    OutlinedButton(
+                        onClick = onStartDryRun,
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                    ) {
+                        Icon(Icons.Filled.Rule, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Simula operazione")
+                    }
                     Button(
                         onClick = onStartWrite,
                         enabled = isWritable,
@@ -477,6 +501,7 @@ private fun VendorDetailContent(
 @Composable
 private fun WriteConfirmationDialog(
     vendor: VendorEntity,
+    plan: WritePlan,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -491,13 +516,49 @@ private fun WriteConfirmationDialog(
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(vendor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Tag atteso · ${vendor.tagType.displayName}", style = MaterialTheme.typography.bodySmall)
+                        Text("${plan.totalOperations} operazioni su ${plan.sectorsTouched} settori", style = MaterialTheme.typography.bodySmall)
                         Text("Controllo aree protette e read-back attivi", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         },
-        confirmButton = { Button(onClick = onConfirm) { Text("Arma scrittura") } },
+        confirmButton = { Button(onClick = onConfirm, enabled = plan.isReady) { Text("Arma scrittura") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annulla") } }
+    )
+}
+
+@Composable
+private fun WritePlanDialog(
+    vendor: VendorEntity,
+    plan: WritePlan,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                if (plan.isReady) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+                contentDescription = null,
+                tint = if (plan.isReady) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text(if (plan.isReady) "Simulazione superata" else "Simulazione bloccata") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Analisi locale di ${vendor.name}. Nessun tag è stato contattato e nessun dato è stato scritto.")
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("${plan.totalOperations} operazioni totali", fontWeight = FontWeight.Bold)
+                        Text("${plan.blockWrites} scritture · ${plan.valueOperations} operazioni valore")
+                        Text("${plan.sectorsTouched} settori coinvolti · ${plan.configuredSectors} settori con chiavi")
+                    }
+                }
+                plan.warnings.forEach { warning ->
+                    Text("• $warning", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("Chiudi") } }
     )
 }
 

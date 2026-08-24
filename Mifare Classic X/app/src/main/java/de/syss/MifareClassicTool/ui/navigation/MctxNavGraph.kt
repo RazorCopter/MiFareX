@@ -29,6 +29,8 @@ import de.syss.MifareClassicTool.ui.adminmode.VendorEditorScreen
 import de.syss.MifareClassicTool.ui.adminmode.ImportExportScreen
 import de.syss.MifareClassicTool.ui.adminmode.UidManagerScreen
 import de.syss.MifareClassicTool.ui.adminmode.AdminHubScreen
+import de.syss.MifareClassicTool.ui.history.OperationHistoryScreen
+import de.syss.MifareClassicTool.ui.diagnostics.NfcDiagnosticsScreen
 import de.syss.MifareClassicTool.Activities.MainMenu
 import de.syss.MifareClassicTool.Activities.Preferences
 
@@ -50,6 +52,8 @@ object Routes {
         else "vendor_editor"
     const val IMPORT_EXPORT = "import_export"
     const val UID_MANAGER = "uid_manager"
+    const val OPERATION_HISTORY = "operation_history"
+    const val NFC_DIAGNOSTICS = "nfc_diagnostics"
 }
 
 data class BottomNavItem(
@@ -111,7 +115,8 @@ fun MctxNavGraph(
                 onVendorClick = onNavigateToVendorDetail,
                 onAddVendorClick = { onNavigateToVendorEditor(null) },
                 onEditVendorClick = { vendorId -> onNavigateToVendorEditor(vendorId) },
-                onImportExportClick = onNavigateToImportExport
+                onImportExportClick = onNavigateToImportExport,
+                onHistoryClick = { navController.navigate(Routes.OPERATION_HISTORY) }
             )
         }
 
@@ -142,6 +147,8 @@ fun MctxNavGraph(
                 onCreateVendor = { onNavigateToVendorEditor(null) },
                 onImportExport = onNavigateToImportExport,
                 onUidManager = { navController.navigate(Routes.UID_MANAGER) },
+                onHistory = { navController.navigate(Routes.OPERATION_HISTORY) },
+                onDiagnostics = { navController.navigate(Routes.NFC_DIAGNOSTICS) },
                 onExpertMode = { context.startActivity(Intent(context, MainMenu::class.java)) },
                 onSettings = { context.startActivity(Intent(context, Preferences::class.java)) }
             )
@@ -179,6 +186,14 @@ fun MctxNavGraph(
 
         composable(Routes.UID_MANAGER) {
             UidManagerScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.OPERATION_HISTORY) {
+            OperationHistoryScreen(onBackClick = { navController.popBackStack() })
+        }
+
+        composable(Routes.NFC_DIAGNOSTICS) {
+            NfcDiagnosticsScreen(onBackClick = { navController.popBackStack() })
         }
 
     }

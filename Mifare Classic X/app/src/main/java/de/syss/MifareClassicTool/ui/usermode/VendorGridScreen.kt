@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -69,6 +70,7 @@ fun VendorGridScreen(
     onAddVendorClick: () -> Unit,
     onEditVendorClick: (String) -> Unit = {},
     onImportExportClick: () -> Unit = {},
+    onHistoryClick: () -> Unit = {},
     viewModel: VendorGridViewModel = viewModel()
 ) {
     val vendors by viewModel.vendors.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -87,6 +89,9 @@ fun VendorGridScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onHistoryClick) {
+                        Icon(Icons.Filled.History, contentDescription = "Cronologia operazioni")
+                    }
                     IconButton(onClick = onImportExportClick) {
                         Icon(Icons.Filled.ImportExport, contentDescription = "Importa o esporta profili")
                     }

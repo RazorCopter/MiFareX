@@ -11,8 +11,14 @@ import de.syss.MifareClassicTool.bridge.NfcTagHandle
 import de.syss.MifareClassicTool.bridge.VendorNfcGateway
 import de.syss.MifareClassicTool.data.model.VendorEntity
 import de.syss.MifareClassicTool.data.model.WriteResult
+import de.syss.MifareClassicTool.data.model.OperationOutcome
+import de.syss.MifareClassicTool.data.model.OperationSource
+import de.syss.MifareClassicTool.data.model.OperationType
+import de.syss.MifareClassicTool.data.repository.OperationLogRepository
 import de.syss.MifareClassicTool.data.repository.VendorRepository
 import de.syss.MifareClassicTool.domain.model.PreflightResult
+import de.syss.MifareClassicTool.domain.model.WritePlan
+import de.syss.MifareClassicTool.domain.model.WritePlanAnalyzer
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
 import de.syss.MifareClassicTool.domain.nfc.NfcOperationKind
 import de.syss.MifareClassicTool.domain.nfc.NfcOperationSession
@@ -87,6 +93,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
     }
 
     private val repository = VendorRepository(application)
+    private val operationLogRepository = OperationLogRepository(application)
     private val sessionCoordinator = NfcOperationSessionCoordinator()
     private var timeoutJob: Job? = null
     private var operationJob: Job? = null
@@ -150,6 +157,34 @@ class VendorWriteViewModel @JvmOverloads constructor(
         return keys.isNotEmpty() &&
             (payload.blocks.isNotEmpty() || payload.valueBlockOps.isNotEmpty()) &&
             PayloadSafetyValidator.validate(payload, vendor.tagType) is PayloadValidationResult.Valid
+    }
+
+    fun analyzeWritePlan(vendor: VendorEntity): WritePlan = WritePlanAnalyzer.analyze(
+        keys = repository.parseKeys(vendor),
+        payload = repository.parsePayload(vendor),
+        tagType = vendor.tagType
+    )
+
+    fun recordDryRun(vendor: VendorEntity, plan: WritePlan = analyzeWritePlan(vendor)) {
+        viewModelScope.launch {
+            safelyRecord {
+                operationLogRepository.record(
+                    type = OperationType.DRY_RUN,
+                    outcome = if (plan.isReady) OperationOutcome.SUCCESS else OperationOutcome.BLOCKED,
+                    source = OperationSource.OPERATOR,
+                    vendorId = vendor.id,
+                    vendorName = vendor.name,
+                    summary = if (plan.isReady) "Piano di scrittura pronto" else "Simulazione bloccata",
+                    technicalDetails = if (plan.isReady) {
+                        "${plan.totalOperations} operazioni su ${plan.sectorsTouched} settori"
+                    } else {
+                        plan.warnings.joinToString(" · ")
+                    },
+                    blocksAttempted = plan.totalOperations,
+                    blocksCompleted = 0
+                )
+            }
+        }
     }
 
     fun startWriteFlow() {
@@ -297,6 +332,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
 
     private fun handleManualTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
+            val startedAt = System.currentTimeMillis()
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
                 _writeState.value = NfcWriteState.Idle
@@ -322,11 +358,20 @@ class VendorWriteViewModel @JvmOverloads constructor(
             writeResult?.let { repository.updateWriteResult(vendor.id, it) }
             _writeState.value = NfcWriteState.Completed(result)
             sessionCoordinator.finish(session.token)
+            recordWriteResult(
+                type = OperationType.MANUAL_WRITE,
+                source = OperationSource.OPERATOR,
+                vendor = vendor,
+                rawUid = tag.uid,
+                result = result,
+                startedAt = startedAt
+            )
         }
     }
 
     private fun handleTestKeysTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
+            val startedAt = System.currentTimeMillis()
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
                 _testState.value = NfcTestState.Idle
@@ -339,11 +384,26 @@ class VendorWriteViewModel @JvmOverloads constructor(
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             _testState.value = NfcTestState.Result(result)
             sessionCoordinator.finish(session.token)
+            val success = result is PreflightResult.Ready
+            safelyRecord {
+                operationLogRepository.record(
+                    type = OperationType.KEY_TEST,
+                    outcome = if (success) OperationOutcome.SUCCESS else OperationOutcome.FAILED,
+                    source = OperationSource.OPERATOR,
+                    vendorId = vendor.id,
+                    vendorName = vendor.name,
+                    rawUid = tag.uid,
+                    summary = if (success) "Chiavi verificate" else "Verifica chiavi non superata",
+                    technicalDetails = preflightDescription(result),
+                    durationMillis = System.currentTimeMillis() - startedAt
+                )
+            }
         }
     }
 
     private fun handleReadTag(tag: NfcTagHandle, session: NfcOperationSession) {
         operationJob = viewModelScope.launch {
+            val startedAt = System.currentTimeMillis()
             val vendor = session.vendorId?.let { repository.getVendorById(it) }
             if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
                 _readState.value = NfcReadState.Idle
@@ -359,27 +419,52 @@ class VendorWriteViewModel @JvmOverloads constructor(
                 _readState.value = NfcReadState.Error("Impossibile leggere il tag o chiavi non valide.")
             }
             sessionCoordinator.finish(session.token)
+            safelyRecord {
+                operationLogRepository.record(
+                    type = OperationType.READ,
+                    outcome = if (dump != null) OperationOutcome.SUCCESS else OperationOutcome.FAILED,
+                    source = OperationSource.OPERATOR,
+                    vendorId = vendor.id,
+                    vendorName = vendor.name,
+                    rawUid = tag.uid,
+                    summary = if (dump != null) "Lettura tag completata" else "Lettura tag fallita",
+                    technicalDetails = dump?.let { "${it.size} righe lette; contenuto non archiviato" },
+                    durationMillis = System.currentTimeMillis() - startedAt
+                )
+            }
         }
     }
 
     private fun handleAutoModeTag(tag: NfcTagHandle, session: NfcOperationSession) {
         val uid = tag.uid.toHexString()
+        val startedAt = System.currentTimeMillis()
 
         operationJob = viewModelScope.launch {
             val vendor = repository.getVendorByUid(uid)
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             if (vendor == null) {
                 _autoModeState.value = AutoModeState.UnknownUid(uid)
+                safelyRecord {
+                    operationLogRepository.record(
+                        type = OperationType.AUTO_WRITE,
+                        outcome = OperationOutcome.BLOCKED,
+                        source = OperationSource.AUTO_MODE,
+                        rawUid = tag.uid,
+                        summary = "UID non associato",
+                        technicalDetails = "Nessuna regola vendor disponibile",
+                        durationMillis = System.currentTimeMillis() - startedAt
+                    )
+                }
             } else {
                 // Update Writing state with the real vendor name (was set to "…" by atomic swap)
                 _autoModeState.value = AutoModeState.Writing(vendor.name)
-                executeAutoWrite(tag, vendor)
+                executeAutoWrite(tag, vendor, startedAt)
             }
             sessionCoordinator.finish(session.token)
         }
     }
 
-    private suspend fun executeAutoWrite(tag: NfcTagHandle, vendor: VendorEntity) {
+    private suspend fun executeAutoWrite(tag: NfcTagHandle, vendor: VendorEntity, startedAt: Long) {
         // Writing state already set by caller
 
         val keys = repository.parseKeys(vendor)
@@ -395,6 +480,14 @@ class VendorWriteViewModel @JvmOverloads constructor(
         writeResult?.let { repository.updateWriteResult(vendor.id, it) }
 
         _autoModeState.value = AutoModeState.Done(vendor.name, result)
+        recordWriteResult(
+            type = OperationType.AUTO_WRITE,
+            source = OperationSource.AUTO_MODE,
+            vendor = vendor,
+            rawUid = tag.uid,
+            result = result,
+            startedAt = startedAt
+        )
     }
 
     // ===== Helpers =====
@@ -441,6 +534,78 @@ class VendorWriteViewModel @JvmOverloads constructor(
     } catch (_: Exception) {
         Log.e(TAG, "NFC read failed")
         null
+    }
+
+    private suspend fun recordWriteResult(
+        type: OperationType,
+        source: OperationSource,
+        vendor: VendorEntity,
+        rawUid: ByteArray,
+        result: WriteOperationResult,
+        startedAt: Long
+    ) {
+        val outcome = when (result) {
+            is WriteOperationResult.Success -> OperationOutcome.SUCCESS
+            is WriteOperationResult.Partial -> OperationOutcome.PARTIAL
+            is WriteOperationResult.Error -> OperationOutcome.FAILED
+            is WriteOperationResult.PreflightFailed -> OperationOutcome.BLOCKED
+        }
+        val attempted = when (result) {
+            is WriteOperationResult.Success -> result.totalBlocks
+            is WriteOperationResult.Partial -> result.totalBlocks
+            is WriteOperationResult.Error -> result.failures.size.takeIf { it > 0 }
+            is WriteOperationResult.PreflightFailed -> null
+        }
+        val completed = when (result) {
+            is WriteOperationResult.Success -> result.blocksWritten
+            is WriteOperationResult.Partial -> result.blocksWritten
+            else -> 0
+        }
+        safelyRecord {
+            operationLogRepository.record(
+                type = type,
+                outcome = outcome,
+                source = source,
+                vendorId = vendor.id,
+                vendorName = vendor.name,
+                rawUid = rawUid,
+                summary = when (result) {
+                    is WriteOperationResult.Success -> "Scrittura completata"
+                    is WriteOperationResult.Partial -> "Scrittura completata parzialmente"
+                    is WriteOperationResult.Error -> "Scrittura fallita"
+                    is WriteOperationResult.PreflightFailed -> "Scrittura bloccata dal controllo preliminare"
+                },
+                technicalDetails = when (result) {
+                    is WriteOperationResult.Success -> "${result.blocksWritten}/${result.totalBlocks} blocchi verificati"
+                    is WriteOperationResult.Partial -> "${result.blocksWritten}/${result.totalBlocks} blocchi verificati"
+                    is WriteOperationResult.Error -> result.message
+                    is WriteOperationResult.PreflightFailed -> preflightDescription(result.reason)
+                },
+                durationMillis = System.currentTimeMillis() - startedAt,
+                blocksAttempted = attempted,
+                blocksCompleted = completed
+            )
+        }
+    }
+
+    private fun preflightDescription(result: PreflightResult): String = when (result) {
+        is PreflightResult.Ready -> "${result.sectorsVerified}/${result.tagSectorCount} settori verificati"
+        PreflightResult.TagNotSupported -> "Tag non supportato"
+        is PreflightResult.TagTypeMismatch -> "Tipo tag diverso da quello configurato"
+        is PreflightResult.KeyAuthFailed -> "Autenticazione fallita su ${result.failedSectors.size} settori"
+        PreflightResult.NoKeysConfigured -> "Nessuna chiave configurata"
+        PreflightResult.NoPayloadConfigured -> "Nessun payload configurato"
+        is PreflightResult.UnsafePayload -> "Payload non conforme ai vincoli di sicurezza"
+        PreflightResult.TagLost -> "Tag rimosso durante il controllo"
+        is PreflightResult.ConnectionError -> result.message
+    }
+
+    private suspend fun safelyRecord(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (_: Exception) {
+            Log.w(TAG, "Unable to persist privacy-safe operation log")
+        }
     }
 
     private fun armVendorOperation(kind: NfcOperationKind, vendorId: String) {

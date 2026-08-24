@@ -4,6 +4,9 @@ import androidx.room.TypeConverter
 import de.syss.MifareClassicTool.data.model.VendorCategory
 import de.syss.MifareClassicTool.data.model.TagType
 import de.syss.MifareClassicTool.data.model.WriteResult
+import de.syss.MifareClassicTool.data.model.OperationOutcome
+import de.syss.MifareClassicTool.data.model.OperationSource
+import de.syss.MifareClassicTool.data.model.OperationType
 
 /**
  * Room TypeConverters for enum types stored in the VendorEntity.
@@ -32,4 +35,22 @@ class Converters {
     @TypeConverter
     fun toWriteResult(value: String): WriteResult =
         WriteResult.valueOf(value)
+
+    @TypeConverter
+    fun fromOperationType(value: OperationType): String = value.name
+
+    @TypeConverter
+    fun toOperationType(value: String): OperationType = OperationType.valueOf(value)
+
+    @TypeConverter
+    fun fromOperationOutcome(value: OperationOutcome): String = value.name
+
+    @TypeConverter
+    fun toOperationOutcome(value: String): OperationOutcome = OperationOutcome.valueOf(value)
+
+    @TypeConverter
+    fun fromOperationSource(value: OperationSource): String = value.name
+
+    @TypeConverter
+    fun toOperationSource(value: String): OperationSource = OperationSource.valueOf(value)
 }

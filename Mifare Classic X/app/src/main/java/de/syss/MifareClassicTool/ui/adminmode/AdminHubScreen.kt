@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.AddBusiness
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.ImportExport
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -55,12 +57,16 @@ fun AdminHubScreen(
     onImportExport: () -> Unit,
     onUidManager: () -> Unit,
     onExpertMode: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onHistory: () -> Unit = {},
+    onDiagnostics: () -> Unit = {}
 ) {
     val actions = listOf(
         AdminAction("Nuovo vendor", "Crea chiavi, payload e regole per un nuovo profilo.", Icons.Filled.AddBusiness, onClick = onCreateVendor),
         AdminAction("Import ed export", "Backup locale e importazione validata dei profili.", Icons.Filled.ImportExport, onClick = onImportExport),
         AdminAction("Gestione UID", "Associa tessere conosciute ai vendor configurati.", Icons.Filled.Fingerprint, onClick = onUidManager),
+        AdminAction("Cronologia operazioni", "Consulta l’audit locale con esiti e dettagli privacy-safe.", Icons.Filled.History, onClick = onHistory),
+        AdminAction("Diagnostica NFC", "Verifica adattatore, dispositivo e controlli operativi.", Icons.Filled.Nfc, onClick = onDiagnostics),
         AdminAction("Impostazioni", "Preferenze NFC e comportamento degli strumenti.", Icons.Filled.Settings, onClick = onSettings),
         AdminAction("Expert Mode", "Accedi agli strumenti MIFARE avanzati e ai dump raw.", Icons.Filled.AdminPanelSettings, expert = true, onClick = onExpertMode)
     )
