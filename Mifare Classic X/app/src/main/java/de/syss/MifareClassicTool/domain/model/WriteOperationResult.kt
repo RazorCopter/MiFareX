@@ -16,6 +16,7 @@ data class BlockWriteResult(
         2 -> "Blocco fuori range"
         3 -> "Dati non sono 16 byte"
         4 -> "Autenticazione fallita"
+        5 -> "Verifica read-back fallita"
         -1 -> "Errore I/O durante la scrittura"
         else -> "Errore sconosciuto (codice $resultCode)"
     }
@@ -51,6 +52,9 @@ sealed class PreflightResult {
 
     /** No blocks to write configured for this vendor. */
     data object NoPayloadConfigured : PreflightResult()
+
+    /** Payload targets manufacturer blocks, trailers, or invalid coordinates. */
+    data class UnsafePayload(val violations: List<String>) : PreflightResult()
 
     /** Tag was removed during check. */
     data object TagLost : PreflightResult()

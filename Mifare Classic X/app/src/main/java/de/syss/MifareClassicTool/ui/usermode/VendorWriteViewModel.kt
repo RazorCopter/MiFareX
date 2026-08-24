@@ -10,6 +10,13 @@ import de.syss.MifareClassicTool.data.model.WriteResult
 import de.syss.MifareClassicTool.data.repository.VendorRepository
 import de.syss.MifareClassicTool.domain.model.PreflightResult
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
+import de.syss.MifareClassicTool.domain.nfc.NfcOperationKind
+import de.syss.MifareClassicTool.domain.nfc.NfcOperationSession
+import de.syss.MifareClassicTool.domain.nfc.NfcOperationSessionCoordinator
+import de.syss.MifareClassicTool.domain.nfc.PayloadSafetyValidator
+import de.syss.MifareClassicTool.domain.nfc.PayloadValidationResult
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -61,8 +68,17 @@ sealed class AutoModeState {
 
 class VendorWriteViewModel(application: Application) : AndroidViewModel(application) {
 
+    companion object {
+        private const val OPERATION_TIMEOUT_MILLIS = 30_000L
+        private const val AUTO_MODE_OWNER = "auto-mode"
+        private fun vendorOwner(vendorId: String) = "vendor-detail:$vendorId"
+    }
+
     private val repository = VendorRepository(application)
     private val nfcBridge = NfcBridge()
+    private val sessionCoordinator = NfcOperationSessionCoordinator()
+    private var timeoutJob: Job? = null
+    private var operationJob: Job? = null
 
     // ===== Manual write flow (VendorDetailScreen) =====
 
@@ -80,20 +96,52 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     val readState: StateFlow<NfcReadState> = _readState.asStateFlow()
 
     private var currentVendor: VendorEntity? = null
+    private var visibleVendorId: String? = null
+
+    fun enterVendorDetail(vendorId: String) {
+        visibleVendorId?.takeIf { it != vendorId }?.let { previousVendorId ->
+            if (sessionCoordinator.cancelOwner(vendorOwner(previousVendorId))) {
+                timeoutJob?.cancel()
+                operationJob?.cancel()
+            }
+        }
+        visibleVendorId = vendorId
+        resetVendorStates()
+        currentVendor = null
+        viewModelScope.launch {
+            val vendor = repository.getVendorById(vendorId)
+            if (visibleVendorId == vendorId) currentVendor = vendor
+        }
+    }
+
+    fun leaveVendorDetail(vendorId: String) {
+        if (visibleVendorId == vendorId) {
+            sessionCoordinator.cancelOwner(vendorOwner(vendorId))
+            timeoutJob?.cancel()
+            operationJob?.cancel()
+            resetVendorStates()
+            visibleVendorId = null
+            currentVendor = null
+        }
+    }
 
     fun loadVendor(vendorId: String): Flow<VendorEntity?> {
-        return repository.observeVendor(vendorId).onEach { currentVendor = it }
+        return repository.observeVendor(vendorId).onEach {
+            if (visibleVendorId == vendorId) currentVendor = it
+        }
     }
 
     /** True when the current vendor has at least one key and one write block. */
     fun vendorIsWritable(vendor: VendorEntity): Boolean {
         val keys = repository.parseKeys(vendor)
         val payload = repository.parsePayload(vendor)
-        return keys.isNotEmpty() && (payload.blocks.isNotEmpty() || payload.valueBlockOps.isNotEmpty())
+        return keys.isNotEmpty() &&
+            (payload.blocks.isNotEmpty() || payload.valueBlockOps.isNotEmpty()) &&
+            PayloadSafetyValidator.validate(payload, vendor.tagType) is PayloadValidationResult.Valid
     }
 
     fun startWriteFlow() {
-        val vendor = currentVendor ?: return
+        val vendor = currentVendor?.takeIf { it.id == visibleVendorId } ?: return
         val keys = repository.parseKeys(vendor)
         val payload = repository.parsePayload(vendor)
 
@@ -109,40 +157,61 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
             )
             return
         }
+        val validation = PayloadSafetyValidator.validate(payload, vendor.tagType)
+        if (validation is PayloadValidationResult.Invalid) {
+            _writeState.value = NfcWriteState.Completed(
+                WriteOperationResult.PreflightFailed(
+                    PreflightResult.UnsafePayload(validation.violations.map { it.description() })
+                )
+            )
+            return
+        }
+        armVendorOperation(NfcOperationKind.MANUAL_WRITE, vendor.id)
         _writeState.value = NfcWriteState.WaitingForTag
     }
 
-    fun cancelWriteFlow() { _writeState.value = NfcWriteState.Idle }
+    fun cancelWriteFlow() {
+        cancelVisibleVendorSession()
+        _writeState.value = NfcWriteState.Idle
+    }
     fun resetState() { _writeState.value = NfcWriteState.Idle }
 
     // ===== Test Keys =====
 
     fun startTestKeys() {
-        val vendor = currentVendor ?: return
+        val vendor = currentVendor?.takeIf { it.id == visibleVendorId } ?: return
         val keys = repository.parseKeys(vendor)
         if (keys.isEmpty()) {
             _testState.value = NfcTestState.Result(PreflightResult.NoKeysConfigured)
             return
         }
+        armVendorOperation(NfcOperationKind.TEST_KEYS, vendor.id)
         _testState.value = NfcTestState.WaitingForTag
     }
 
-    fun cancelTestKeys() { _testState.value = NfcTestState.Idle }
+    fun cancelTestKeys() {
+        cancelVisibleVendorSession()
+        _testState.value = NfcTestState.Idle
+    }
     fun resetTestState() { _testState.value = NfcTestState.Idle }
 
     // ===== Read Tag =====
 
     fun startReadFlow() {
-        val vendor = currentVendor ?: return
+        val vendor = currentVendor?.takeIf { it.id == visibleVendorId } ?: return
         val keys = repository.parseKeys(vendor)
         if (keys.isEmpty()) {
             _readState.value = NfcReadState.Error("Nessuna chiave configurata per la lettura.")
             return
         }
+        armVendorOperation(NfcOperationKind.READ_TAG, vendor.id)
         _readState.value = NfcReadState.WaitingForTag
     }
 
-    fun cancelReadFlow() { _readState.value = NfcReadState.Idle }
+    fun cancelReadFlow() {
+        cancelVisibleVendorSession()
+        _readState.value = NfcReadState.Idle
+    }
     fun resetReadState() { _readState.value = NfcReadState.Idle }
 
     // ===== AutoMode =====
@@ -150,9 +219,20 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     private val _autoModeState = MutableStateFlow<AutoModeState>(AutoModeState.Off)
     val autoModeState: StateFlow<AutoModeState> = _autoModeState.asStateFlow()
 
-    fun startAutoMode() { _autoModeState.value = AutoModeState.Listening }
-    fun stopAutoMode() { _autoModeState.value = AutoModeState.Off }
-    fun resetAutoMode() { _autoModeState.value = AutoModeState.Listening }
+    fun startAutoMode() {
+        armAutoMode()
+        _autoModeState.value = AutoModeState.Listening
+    }
+    fun stopAutoMode() {
+        sessionCoordinator.cancelOwner(AUTO_MODE_OWNER)
+        timeoutJob?.cancel()
+        operationJob?.cancel()
+        _autoModeState.value = AutoModeState.Off
+    }
+    fun resetAutoMode() {
+        armAutoMode()
+        _autoModeState.value = AutoModeState.Listening
+    }
 
     fun associateUidOnly(uid: String, vendorId: String, context: android.content.Context? = null) {
         viewModelScope.launch {
@@ -170,41 +250,47 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun dismissUnknownUid() { _autoModeState.value = AutoModeState.Listening }
+    fun dismissUnknownUid() { resetAutoMode() }
 
     // ===== NFC tag dispatch (called from ComposeActivity.onNewIntent) =====
 
     fun onTagDiscovered(tag: Tag) {
-        // Manual write has priority; check and transition atomically to avoid double-dispatch.
-        if (_writeState.compareAndSet(NfcWriteState.WaitingForTag, NfcWriteState.Verifying("Verifica tag e chiavi..."))) {
-            handleManualTag(tag)
-            return
-        }
-        // Test Keys flow: only run preflight, never write.
-        if (_testState.compareAndSet(NfcTestState.WaitingForTag, NfcTestState.Testing("Verifica chiavi in corso..."))) {
-            handleTestKeysTag(tag)
-            return
-        }
-        // Read flow
-        if (_readState.compareAndSet(NfcReadState.WaitingForTag, NfcReadState.Reading("Lettura tag in corso..."))) {
-            handleReadTag(tag)
-            return
-        }
-        // AutoMode: transition Listening → Writing atomically so rapid re-dispatches are dropped.
-        if (_autoModeState.compareAndSet(AutoModeState.Listening, AutoModeState.Writing("…"))) {
-            handleAutoModeTag(tag)
+        val session = sessionCoordinator.claimNextTag() ?: return
+        timeoutJob?.cancel()
+
+        when (session.kind) {
+            NfcOperationKind.MANUAL_WRITE -> {
+                _writeState.value = NfcWriteState.Verifying("Verifica tag e chiavi...")
+                handleManualTag(tag, session)
+            }
+            NfcOperationKind.TEST_KEYS -> {
+                _testState.value = NfcTestState.Testing("Verifica chiavi in corso...")
+                handleTestKeysTag(tag, session)
+            }
+            NfcOperationKind.READ_TAG -> {
+                _readState.value = NfcReadState.Reading("Lettura tag in corso...")
+                handleReadTag(tag, session)
+            }
+            NfcOperationKind.AUTO_WRITE -> {
+                _autoModeState.value = AutoModeState.Writing("…")
+                handleAutoModeTag(tag, session)
+            }
         }
     }
 
-    private fun handleManualTag(tag: Tag) {
-        val vendor = currentVendor ?: run {
-            _writeState.value = NfcWriteState.Idle
-            return
-        }
-        viewModelScope.launch {
+    private fun handleManualTag(tag: Tag, session: NfcOperationSession) {
+        operationJob = viewModelScope.launch {
+            val vendor = session.vendorId?.let { repository.getVendorById(it) }
+            if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
+                _writeState.value = NfcWriteState.Idle
+                sessionCoordinator.finish(session.token)
+                return@launch
+            }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
             val result = nfcBridge.executeVendorWriteWithPreflight(tag, keys, payload, vendor.tagType)
+
+            if (!sessionCoordinator.isCurrent(session.token)) return@launch
 
             if (result !is WriteOperationResult.PreflightFailed) {
                 _writeState.value = NfcWriteState.Writing("Finalizzazione...")
@@ -218,43 +304,53 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
             }
             writeResult?.let { repository.updateWriteResult(vendor.id, it) }
             _writeState.value = NfcWriteState.Completed(result)
+            sessionCoordinator.finish(session.token)
         }
     }
 
-    private fun handleTestKeysTag(tag: Tag) {
-        val vendor = currentVendor ?: run {
-            _testState.value = NfcTestState.Idle
-            return
-        }
-        viewModelScope.launch {
+    private fun handleTestKeysTag(tag: Tag, session: NfcOperationSession) {
+        operationJob = viewModelScope.launch {
+            val vendor = session.vendorId?.let { repository.getVendorById(it) }
+            if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
+                _testState.value = NfcTestState.Idle
+                sessionCoordinator.finish(session.token)
+                return@launch
+            }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
             val result = nfcBridge.runPreflightOnly(tag, keys, payload, vendor.tagType)
+            if (!sessionCoordinator.isCurrent(session.token)) return@launch
             _testState.value = NfcTestState.Result(result)
+            sessionCoordinator.finish(session.token)
         }
     }
 
-    private fun handleReadTag(tag: Tag) {
-        val vendor = currentVendor ?: run {
-            _readState.value = NfcReadState.Idle
-            return
-        }
-        viewModelScope.launch {
+    private fun handleReadTag(tag: Tag, session: NfcOperationSession) {
+        operationJob = viewModelScope.launch {
+            val vendor = session.vendorId?.let { repository.getVendorById(it) }
+            if (vendor == null || !sessionCoordinator.isCurrent(session.token)) {
+                _readState.value = NfcReadState.Idle
+                sessionCoordinator.finish(session.token)
+                return@launch
+            }
             val keys = repository.parseKeys(vendor)
             val dump = nfcBridge.readVendorDump(tag, keys)
+            if (!sessionCoordinator.isCurrent(session.token)) return@launch
             if (dump != null) {
                 _readState.value = NfcReadState.Success(dump)
             } else {
                 _readState.value = NfcReadState.Error("Impossibile leggere il tag o chiavi non valide.")
             }
+            sessionCoordinator.finish(session.token)
         }
     }
 
-    private fun handleAutoModeTag(tag: Tag) {
+    private fun handleAutoModeTag(tag: Tag, session: NfcOperationSession) {
         val uid = tag.id.toHexString()
 
-        viewModelScope.launch {
+        operationJob = viewModelScope.launch {
             val vendor = repository.getVendorByUid(uid)
+            if (!sessionCoordinator.isCurrent(session.token)) return@launch
             if (vendor == null) {
                 _autoModeState.value = AutoModeState.UnknownUid(uid)
             } else {
@@ -262,6 +358,7 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
                 _autoModeState.value = AutoModeState.Writing(vendor.name)
                 executeAutoWrite(tag, vendor)
             }
+            sessionCoordinator.finish(session.token)
         }
     }
 
@@ -284,6 +381,52 @@ class VendorWriteViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // ===== Helpers =====
+
+    private fun armVendorOperation(kind: NfcOperationKind, vendorId: String) {
+        val session = sessionCoordinator.arm(
+            kind = kind,
+            ownerId = vendorOwner(vendorId),
+            vendorId = vendorId,
+            timeoutMillis = OPERATION_TIMEOUT_MILLIS
+        )
+        scheduleTimeout(session)
+    }
+
+    private fun armAutoMode() {
+        val session = sessionCoordinator.arm(
+            kind = NfcOperationKind.AUTO_WRITE,
+            ownerId = AUTO_MODE_OWNER,
+            vendorId = null,
+            timeoutMillis = OPERATION_TIMEOUT_MILLIS
+        )
+        scheduleTimeout(session)
+    }
+
+    private fun cancelVisibleVendorSession() {
+        visibleVendorId?.let { sessionCoordinator.cancelOwner(vendorOwner(it)) }
+        timeoutJob?.cancel()
+        operationJob?.cancel()
+    }
+
+    private fun resetVendorStates() {
+        _writeState.value = NfcWriteState.Idle
+        _testState.value = NfcTestState.Idle
+        _readState.value = NfcReadState.Idle
+    }
+
+    private fun scheduleTimeout(session: NfcOperationSession) {
+        timeoutJob?.cancel()
+        timeoutJob = viewModelScope.launch {
+            delay(OPERATION_TIMEOUT_MILLIS)
+            if (!sessionCoordinator.finish(session.token)) return@launch
+            when (session.kind) {
+                NfcOperationKind.MANUAL_WRITE -> _writeState.value = NfcWriteState.Idle
+                NfcOperationKind.TEST_KEYS -> _testState.value = NfcTestState.Idle
+                NfcOperationKind.READ_TAG -> _readState.value = NfcReadState.Idle
+                NfcOperationKind.AUTO_WRITE -> _autoModeState.value = AutoModeState.Off
+            }
+        }
+    }
 
     fun getAllVendors() = repository.getAllVendors()
 }

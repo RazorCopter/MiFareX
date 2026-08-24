@@ -11,6 +11,8 @@ import de.syss.MifareClassicTool.data.model.*
 import de.syss.MifareClassicTool.domain.model.BlockWriteResult
 import de.syss.MifareClassicTool.domain.model.PreflightResult
 import de.syss.MifareClassicTool.domain.model.WriteOperationResult
+import de.syss.MifareClassicTool.domain.nfc.PayloadSafetyValidator
+import de.syss.MifareClassicTool.domain.nfc.PayloadValidationResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -73,6 +75,12 @@ class NfcBridge {
                 PreflightResult.NoPayloadConfigured
             )
         }
+        val validation = PayloadSafetyValidator.validate(payload, tagType)
+        if (validation is PayloadValidationResult.Invalid) {
+            return@withContext WriteOperationResult.PreflightFailed(
+                PreflightResult.UnsafePayload(validation.violations.map { it.description() })
+            )
+        }
 
         // ------- Step 1: obtain MCReader -------
         val reader = MCReader.get(tag)
@@ -124,6 +132,12 @@ class NfcBridge {
         if (keys.isEmpty()) return@withContext PreflightResult.NoKeysConfigured
         if (payload.blocks.isEmpty() && payload.valueBlockOps.isEmpty()) {
             return@withContext PreflightResult.NoPayloadConfigured
+        }
+        val validation = PayloadSafetyValidator.validate(payload, tagType)
+        if (validation is PayloadValidationResult.Invalid) {
+            return@withContext PreflightResult.UnsafePayload(
+                validation.violations.map { it.description() }
+            )
         }
 
         val reader = MCReader.get(tag)
@@ -385,23 +399,37 @@ class NfcBridge {
         data: ByteArray,
         candidates: List<Array<ByteArray?>>
     ): BlockWriteResult {
+        val expectedHex = Common.bytes2Hex(data)
+        var writeSucceeded = false
         for ((i, keyPair) in candidates.withIndex()) {
             val keyB = keyPair[1]
             val keyA = keyPair[0]
 
             if (keyB != null) {
                 val code = reader.writeBlock(sector, block, data, keyB, true)
-                if (code == 0) return BlockWriteResult(sector, block, 0)
+                if (code == 0) {
+                    writeSucceeded = true
+                    if (readBlock(reader, sector, block, keyB, true) == expectedHex) {
+                        return BlockWriteResult(sector, block, 0)
+                    }
+                    Log.w(TAG, "Read-back mismatch S${sector}B${block} with KeyB")
+                }
                 Log.d(TAG, "Candidate #$i KeyB failed S${sector}B${block} (code=$code)")
             }
             if (keyA != null) {
                 val code = reader.writeBlock(sector, block, data, keyA, false)
-                if (code == 0) return BlockWriteResult(sector, block, 0)
+                if (code == 0) {
+                    writeSucceeded = true
+                    if (readBlock(reader, sector, block, keyA, false) == expectedHex) {
+                        return BlockWriteResult(sector, block, 0)
+                    }
+                    Log.w(TAG, "Read-back mismatch S${sector}B${block} with KeyA")
+                }
                 Log.d(TAG, "Candidate #$i KeyA failed S${sector}B${block} (code=$code)")
             }
         }
         Log.w(TAG, "All ${candidates.size} candidate(s) failed for S${sector}B${block}")
-        return BlockWriteResult(sector, block, 4)
+        return BlockWriteResult(sector, block, if (writeSucceeded) 5 else 4)
     }
 
     /**
@@ -415,27 +443,70 @@ class NfcBridge {
         increment: Boolean,
         candidates: List<Array<ByteArray?>>
     ): BlockWriteResult {
+        var writeSucceeded = false
         for ((i, keyPair) in candidates.withIndex()) {
             val keyB = keyPair[1]
             val keyA = keyPair[0]
 
             if (keyB != null) {
-                val code = reader.writeValueBlock(sector, block, value, increment, keyB, true)
-                if (code == 0) return BlockWriteResult(sector, block, 0)
-                Log.d(TAG, "Candidate #$i KeyB failed VB S${sector}B${block} (code=$code)")
+                val before = readBlock(reader, sector, block, keyB, true)?.let(::decodeValueBlock)
+                if (before != null) {
+                    val code = reader.writeValueBlock(sector, block, value, increment, keyB, true)
+                    if (code == 0) {
+                        writeSucceeded = true
+                        val expected = if (increment) before + value else before - value
+                        val after = readBlock(reader, sector, block, keyB, true)?.let(::decodeValueBlock)
+                        if (after == expected) return BlockWriteResult(sector, block, 0)
+                        Log.w(TAG, "Value read-back mismatch S${sector}B${block} with KeyB")
+                    }
+                    Log.d(TAG, "Candidate #$i KeyB failed VB S${sector}B${block} (code=$code)")
+                }
             }
             if (keyA != null) {
-                val code = reader.writeValueBlock(sector, block, value, increment, keyA, false)
-                if (code == 0) return BlockWriteResult(sector, block, 0)
-                Log.d(TAG, "Candidate #$i KeyA failed VB S${sector}B${block} (code=$code)")
+                val before = readBlock(reader, sector, block, keyA, false)?.let(::decodeValueBlock)
+                if (before != null) {
+                    val code = reader.writeValueBlock(sector, block, value, increment, keyA, false)
+                    if (code == 0) {
+                        writeSucceeded = true
+                        val expected = if (increment) before + value else before - value
+                        val after = readBlock(reader, sector, block, keyA, false)?.let(::decodeValueBlock)
+                        if (after == expected) return BlockWriteResult(sector, block, 0)
+                        Log.w(TAG, "Value read-back mismatch S${sector}B${block} with KeyA")
+                    }
+                    Log.d(TAG, "Candidate #$i KeyA failed VB S${sector}B${block} (code=$code)")
+                }
             }
         }
-        return BlockWriteResult(sector, block, 4)
+        return BlockWriteResult(sector, block, if (writeSucceeded) 5 else 4)
     }
 
     // ===================================================================
     //  HELPERS
     // ===================================================================
+
+    private fun readBlock(
+        reader: MCReader,
+        sector: Int,
+        block: Int,
+        key: ByteArray,
+        useAsKeyB: Boolean
+    ): String? = try {
+        reader.readSector(sector, key, useAsKeyB)?.getOrNull(block)?.uppercase()
+    } catch (e: TagLostException) {
+        throw e
+    } catch (e: Exception) {
+        Log.d(TAG, "Read-back failed S${sector}B${block}", e)
+        null
+    }
+
+    private fun decodeValueBlock(hex: String): Int? {
+        if (!Common.isValueBlock(hex)) return null
+        val bytes = Common.hex2Bytes(hex)
+        return (bytes[0].toInt() and 0xFF) or
+            ((bytes[1].toInt() and 0xFF) shl 8) or
+            ((bytes[2].toInt() and 0xFF) shl 16) or
+            (bytes[3].toInt() shl 24)
+    }
 
     /**
      * Groups all SectorKey entries by sector into a map of candidate key pairs.

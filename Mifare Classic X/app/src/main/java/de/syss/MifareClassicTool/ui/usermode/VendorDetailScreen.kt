@@ -47,6 +47,11 @@ fun VendorDetailScreen(
     onEditClick: () -> Unit,
     viewModel: VendorWriteViewModel
 ) {
+    DisposableEffect(vendorId) {
+        viewModel.enterVendorDetail(vendorId)
+        onDispose { viewModel.leaveVendorDetail(vendorId) }
+    }
+
     // Cache the Flow so it's not recreated on every recomposition
     val vendorFlow = remember(vendorId) { viewModel.loadVendor(vendorId) }
     val vendor by vendorFlow.collectAsStateWithLifecycle(initialValue = null)
@@ -654,6 +659,11 @@ internal fun preflightResultToUiText(reason: PreflightResult): Pair<String, Stri
             "Nessun Payload Configurato",
             "Il Vendor non ha blocchi da scrivere.\n" +
                 "Vai in \"Configura\" per aggiungere i dati da scrivere."
+        )
+        is PreflightResult.UnsafePayload -> Pair(
+            "Payload Bloccato",
+            "La configurazione tenta di scrivere aree protette o non valide:\n" +
+                reason.violations.joinToString("\n") { "• $it" }
         )
         is PreflightResult.TagLost -> Pair(
             "Tag Rimosso",
