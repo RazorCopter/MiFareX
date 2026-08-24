@@ -1,13 +1,24 @@
 package de.syss.MifareClassicTool.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+
+/** User-selectable theme mode, persisted in SharedPreferences. */
+enum class ThemeMode { AUTO, LIGHT, DARK }
+
+/** CompositionLocal to propagate theme mode down the tree. */
+val LocalThemeMode = compositionLocalOf { ThemeMode.AUTO }
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
@@ -93,16 +104,36 @@ val MctxShapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp)
 )
 
-/** Branded Material 3 theme. Dynamic colors stay disabled to preserve safety semantics. */
+/** Branded Material 3 theme with Dynamic Color support and manual mode override. */
 @Composable
 fun MctxTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.AUTO,
+    useDynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-        typography = MctxTypography,
-        shapes = MctxShapes,
-        content = content
-    )
+    val darkTheme = when (themeMode) {
+        ThemeMode.AUTO -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+
+    val colorScheme = when {
+        // Dynamic Color available on Android 12+ (SDK 31)
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    androidx.compose.runtime.CompositionLocalProvider(LocalThemeMode provides themeMode) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = MctxTypography,
+            shapes = MctxShapes,
+            content = content
+        )
+    }
 }
+

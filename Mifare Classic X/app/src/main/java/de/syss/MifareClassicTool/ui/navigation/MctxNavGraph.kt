@@ -33,6 +33,7 @@ import de.syss.MifareClassicTool.ui.history.OperationHistoryScreen
 import de.syss.MifareClassicTool.ui.diagnostics.NfcDiagnosticsScreen
 import de.syss.MifareClassicTool.Activities.MainMenu
 import de.syss.MifareClassicTool.Activities.Preferences
+import de.syss.MifareClassicTool.ui.theme.ThemeMode
 
 object Routes {
     const val USER_MODE = "user_mode"
@@ -91,7 +92,11 @@ fun MctxNavGraph(
     onNavigateToVendorDetail: (String) -> Unit,
     onNavigateToVendorEditor: (String?) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToImportExport: () -> Unit = { navController.navigate(Routes.IMPORT_EXPORT) }
+    onNavigateToImportExport: () -> Unit = { navController.navigate(Routes.IMPORT_EXPORT) },
+    currentThemeMode: ThemeMode = ThemeMode.AUTO,
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    useDynamicColor: Boolean = true,
+    onDynamicColorToggle: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     NavHost(
@@ -150,7 +155,11 @@ fun MctxNavGraph(
                 onHistory = { navController.navigate(Routes.OPERATION_HISTORY) },
                 onDiagnostics = { navController.navigate(Routes.NFC_DIAGNOSTICS) },
                 onExpertMode = { context.startActivity(Intent(context, MainMenu::class.java)) },
-                onSettings = { context.startActivity(Intent(context, Preferences::class.java)) }
+                onSettings = { context.startActivity(Intent(context, Preferences::class.java)) },
+                currentThemeMode = currentThemeMode,
+                onThemeModeChanged = onThemeModeChanged,
+                useDynamicColor = useDynamicColor,
+                onDynamicColorToggle = onDynamicColorToggle
             )
         }
 

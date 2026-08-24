@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -664,7 +665,12 @@ private fun VerifyingOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
+            .then(
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                    Modifier.blur(20.dp)
+                else Modifier
+            )
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.75f)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp).widthIn(max = 520.dp)) {
@@ -703,7 +709,12 @@ private fun WritingOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.92f)),
+            .then(
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S)
+                    Modifier.blur(20.dp)
+                else Modifier
+            )
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.75f)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp).widthIn(max = 520.dp)) {

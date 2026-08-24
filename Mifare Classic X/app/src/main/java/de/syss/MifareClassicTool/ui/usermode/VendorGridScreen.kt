@@ -68,6 +68,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,6 +183,16 @@ fun VendorGridScreen(
                             }
                         }
                         items(vendors, key = { it.id }) { vendor ->
+                            val index = vendors.indexOf(vendor)
+                            val animatedAlpha = remember { androidx.compose.animation.core.Animatable(0f) }
+                            val animatedOffsetY = remember { androidx.compose.animation.core.Animatable(24f) }
+                            LaunchedEffect(vendor.id) {
+                                kotlinx.coroutines.delay(index * 50L)
+                                kotlinx.coroutines.coroutineScope {
+                                    launch { animatedAlpha.animateTo(1f, tween(300)) }
+                                    launch { animatedOffsetY.animateTo(0f, tween(350, easing = androidx.compose.animation.core.EaseOutCubic)) }
+                                }
+                            }
                             VendorCard(
                                 vendor = vendor,
                                 onClick = { onVendorClick(vendor.id) },
@@ -187,6 +200,10 @@ fun VendorGridScreen(
                                 onDuplicateClick = { viewModel.duplicateVendor(vendor.id) },
                                 modifier = Modifier
                                     .animateItem()
+                                    .graphicsLayer {
+                                        alpha = animatedAlpha.value
+                                        translationY = animatedOffsetY.value * density
+                                    }
                                     .then(if (isGridView) Modifier else Modifier.height(96.dp)),
                                 isGrid = isGridView
                             )

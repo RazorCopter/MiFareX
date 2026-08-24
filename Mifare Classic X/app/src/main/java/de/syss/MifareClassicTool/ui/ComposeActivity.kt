@@ -18,15 +18,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import de.syss.MifareClassicTool.data.backup.AutoBackupManager
 import de.syss.MifareClassicTool.ui.auth.AuthResult
 import de.syss.MifareClassicTool.ui.auth.BiometricAuthManager
 import de.syss.MifareClassicTool.ui.auth.LockScreen
 import de.syss.MifareClassicTool.ui.navigation.*
 import de.syss.MifareClassicTool.ui.onboarding.OnboardingScreen
 import de.syss.MifareClassicTool.ui.theme.MctxTheme
+import de.syss.MifareClassicTool.ui.theme.ThemeMode
 import de.syss.MifareClassicTool.ui.usermode.VendorWriteViewModel
+import kotlinx.coroutines.launch
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class ComposeActivity : FragmentActivity() {
 
@@ -37,6 +42,8 @@ class ComposeActivity : FragmentActivity() {
     private val vendorWriteViewModel: VendorWriteViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Install splash screen — must be called before setContent/super.onCreate
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -47,7 +54,11 @@ class ComposeActivity : FragmentActivity() {
         val onboardingDone = prefs.getBoolean("onboarding_done", false)
 
         setContent {
-            MctxTheme {
+            val themeModeStr = prefs.getString("theme_mode", ThemeMode.AUTO.name) ?: ThemeMode.AUTO.name
+            var themeMode by remember { mutableStateOf(ThemeMode.valueOf(themeModeStr)) }
+            var useDynamicColor by remember { mutableStateOf(prefs.getBoolean("dynamic_color", true)) }
+
+            MctxTheme(themeMode = themeMode, useDynamicColor = useDynamicColor) {
                 var showOnboarding by remember { mutableStateOf(!onboardingDone) }
                 var isUnlocked by remember { mutableStateOf(!BiometricAuthManager.isAvailable(this)) }
                 var authError by remember { mutableStateOf<String?>(null) }
@@ -83,7 +94,19 @@ class ComposeActivity : FragmentActivity() {
                             }
                         }
                     }
-                    else -> MctxApp(vendorWriteViewModel = vendorWriteViewModel)
+                    else -> MctxApp(
+                        vendorWriteViewModel = vendorWriteViewModel,
+                        currentThemeMode = themeMode,
+                        onThemeModeChanged = { newMode ->
+                            themeMode = newMode
+                            prefs.edit { putString("theme_mode", newMode.name) }
+                        },
+                        useDynamicColor = useDynamicColor,
+                        onDynamicColorToggle = { enabled ->
+                            useDynamicColor = enabled
+                            prefs.edit { putBoolean("dynamic_color", enabled) }
+                        }
+                    )
                 }
             }
         }
@@ -95,6 +118,8 @@ class ComposeActivity : FragmentActivity() {
     override fun onResume() {
         super.onResume()
         enableNfcForegroundDispatch()
+        // Trigger auto-backup (best-effort, every 24h)
+        lifecycleScope.launch { AutoBackupManager.runIfNeeded(this@ComposeActivity) }
     }
 
     override fun onPause() {
@@ -150,7 +175,13 @@ class ComposeActivity : FragmentActivity() {
 }
 
 @Composable
-fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
+fun MctxApp(
+    vendorWriteViewModel: VendorWriteViewModel,
+    currentThemeMode: ThemeMode = ThemeMode.AUTO,
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    useDynamicColor: Boolean = true,
+    onDynamicColorToggle: (Boolean) -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -223,7 +254,11 @@ fun MctxApp(vendorWriteViewModel: VendorWriteViewModel) {
             },
             modifier = Modifier
                 .padding(innerPadding)
-                .consumeWindowInsets(innerPadding)
+                .consumeWindowInsets(innerPadding),
+            currentThemeMode = currentThemeMode,
+            onThemeModeChanged = onThemeModeChanged,
+            useDynamicColor = useDynamicColor,
+            onDynamicColorToggle = onDynamicColorToggle
         )
     }
 }

@@ -10,24 +10,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddBusiness
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -41,6 +47,7 @@ import de.syss.MifareClassicTool.ui.components.MctxModeBadge
 import de.syss.MifareClassicTool.ui.components.MctxStatusBanner
 import de.syss.MifareClassicTool.ui.components.NfcStatusBadge
 import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
+import de.syss.MifareClassicTool.ui.theme.ThemeMode
 
 private data class AdminAction(
     val title: String,
@@ -59,13 +66,17 @@ fun AdminHubScreen(
     onExpertMode: () -> Unit,
     onSettings: () -> Unit,
     onHistory: () -> Unit = {},
-    onDiagnostics: () -> Unit = {}
+    onDiagnostics: () -> Unit = {},
+    currentThemeMode: ThemeMode = ThemeMode.AUTO,
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    useDynamicColor: Boolean = true,
+    onDynamicColorToggle: (Boolean) -> Unit = {}
 ) {
     val actions = listOf(
         AdminAction("Nuovo vendor", "Crea chiavi, payload e regole per un nuovo profilo.", Icons.Filled.AddBusiness, onClick = onCreateVendor),
         AdminAction("Import ed export", "Backup locale e importazione validata dei profili.", Icons.Filled.ImportExport, onClick = onImportExport),
         AdminAction("Gestione UID", "Associa tessere conosciute ai vendor configurati.", Icons.Filled.Fingerprint, onClick = onUidManager),
-        AdminAction("Cronologia operazioni", "Consulta l’audit locale con esiti e dettagli privacy-safe.", Icons.Filled.History, onClick = onHistory),
+        AdminAction("Cronologia operazioni", "Consulta l'audit locale con esiti e dettagli privacy-safe.", Icons.Filled.History, onClick = onHistory),
         AdminAction("Diagnostica NFC", "Verifica adattatore, dispositivo e controlli operativi.", Icons.Filled.Nfc, onClick = onDiagnostics),
         AdminAction("Impostazioni", "Preferenze NFC e comportamento degli strumenti.", Icons.Filled.Settings, onClick = onSettings),
         AdminAction("Expert Mode", "Accedi agli strumenti MIFARE avanzati e ai dump raw.", Icons.Filled.AdminPanelSettings, expert = true, onClick = onExpertMode)
@@ -94,7 +105,7 @@ fun AdminHubScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     MctxStatusBanner(
                         title = "Area amministratore",
                         message = "Le modifiche qui influenzano le operazioni degli utenti. Expert Mode resta separata.",
@@ -104,6 +115,72 @@ fun AdminHubScreen(
                 items(actions) { action ->
                     AdminActionCard(action)
                 }
+                // Theme selector section
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    ThemeSelectorCard(
+                        currentThemeMode = currentThemeMode,
+                        onThemeModeChanged = onThemeModeChanged,
+                        useDynamicColor = useDynamicColor,
+                        onDynamicColorToggle = onDynamicColorToggle
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeSelectorCard(
+    currentThemeMode: ThemeMode,
+    onThemeModeChanged: (ThemeMode) -> Unit,
+    useDynamicColor: Boolean,
+    onDynamicColorToggle: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.BrightnessAuto, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text("Tema dell'interfaccia", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            // Auto / Light / Dark chips
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = currentThemeMode == ThemeMode.AUTO,
+                    onClick = { onThemeModeChanged(ThemeMode.AUTO) },
+                    label = { Text("Automatico") },
+                    leadingIcon = { Icon(Icons.Filled.BrightnessAuto, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+                FilterChip(
+                    selected = currentThemeMode == ThemeMode.LIGHT,
+                    onClick = { onThemeModeChanged(ThemeMode.LIGHT) },
+                    label = { Text("Chiaro") },
+                    leadingIcon = { Icon(Icons.Filled.LightMode, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+                FilterChip(
+                    selected = currentThemeMode == ThemeMode.DARK,
+                    onClick = { onThemeModeChanged(ThemeMode.DARK) },
+                    label = { Text("Scuro") },
+                    leadingIcon = { Icon(Icons.Filled.Brightness4, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+            }
+            // Dynamic Color toggle (Android 12+)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Colore dinamico", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("Segue il wallpaper (Android 12+)", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = useDynamicColor, onCheckedChange = onDynamicColorToggle)
             }
         }
     }
