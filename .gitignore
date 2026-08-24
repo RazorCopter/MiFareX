@@ -1,32 +1,44 @@
-# my stuff
-Mifare Classic Tool/doc/
+# Android Studio and local machine configuration
+**/.idea/
+**/*.iml
+**/local.properties
+.vscode/
 
-# Andoird Studio stuff
-Mifare Classic Tool/**/*.iml
-Mifare Classic Tool/.gradle
-Mifare Classic Tool/local.properties
-Mifare Classic Tool/.idea/
-Mifare Classic Tool/**/build
-Mifare Classic Tool/app/release
+# Gradle, Kotlin and generated build output
+**/.gradle/
+**/.gradle-user-home/
+**/.kotlin/
+**/build/
+**/out/
+**/bin/
+**/gen/
+**/.externalNativeBuild/
+**/.cxx/
 
-# built application files
+# Embedded toolchains and archives are not repository content
+/Mifare Classic X/jdk*/
+/Mifare Classic X/jdk*.zip
+/Mifare Classic X/android-sdk*/
+
+# Generated application artifacts
 *.apk
 *.ap_
-
-# files for the dex VM
+*.aab
 *.dex
-
-# Java class files
 *.class
 
-# generated files
-**/bin
-**/gen
+# Secrets and signing material
+*.jks
+*.keystore
+**/secrets.properties
 
-# OS specific
+# OmegaNFC is a separate project and its samples contain sensitive NFC data
+/OmegaNFC/
+/omega_nfc_vendors.json
+
+# Temporary, IDE and operating-system files
+*.log
+*.tmp
+*.lnk
 **/.DS_Store
-
-.idea
-.vscode
-build
-*.jar
+Thumbs.db
