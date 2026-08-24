@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,6 +64,10 @@ import de.syss.MifareClassicTool.ui.components.NfcUiStatus
 import de.syss.MifareClassicTool.ui.components.PremiumScreenBackground
 import de.syss.MifareClassicTool.ui.components.VendorCard
 import de.syss.MifareClassicTool.ui.components.rememberNfcUiStatus
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +83,7 @@ fun VendorGridScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val nfcStatus = rememberNfcUiStatus()
     val focusRequester = remember { FocusRequester() }
+    var isGridView by rememberSaveable { mutableStateOf(true) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -89,6 +96,9 @@ fun VendorGridScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { isGridView = !isGridView }) {
+                        Icon(if (isGridView) Icons.Filled.ViewList else Icons.Filled.GridView, contentDescription = "Cambia visualizzazione")
+                    }
                     IconButton(onClick = onHistoryClick) {
                         Icon(Icons.Filled.History, contentDescription = "Cronologia operazioni")
                     }
@@ -147,7 +157,7 @@ fun VendorGridScreen(
                     EmptyVendorState(onAddClick = onAddVendorClick, nfcStatus = nfcStatus, modifier = Modifier.fillMaxSize())
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 172.dp),
+                        columns = if (isGridView) GridCells.Adaptive(minSize = 160.dp) else GridCells.Fixed(1),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -175,7 +185,10 @@ fun VendorGridScreen(
                                 onClick = { onVendorClick(vendor.id) },
                                 onEditClick = { onEditVendorClick(vendor.id) },
                                 onDuplicateClick = { viewModel.duplicateVendor(vendor.id) },
-                                modifier = Modifier.animateItem()
+                                modifier = Modifier
+                                    .animateItem()
+                                    .then(if (isGridView) Modifier else Modifier.height(96.dp)),
+                                isGrid = isGridView
                             )
                         }
                     }

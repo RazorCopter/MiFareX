@@ -192,7 +192,7 @@ private fun OnboardingCopy(page: OnboardingPage, modifier: Modifier = Modifier) 
     ) {
         MctxModeBadge(page.eyebrow)
         Spacer(Modifier.height(18.dp))
-        Text(page.title, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+        Text(page.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
         Text(page.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Spacer(Modifier.height(18.dp))

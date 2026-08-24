@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -77,7 +78,8 @@ fun VendorCard(
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDuplicateClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isGrid: Boolean = true
 ) {
     val categoryColor = getCategoryColor(vendor.category)
     var menuExpanded by remember { mutableStateOf(false) }
@@ -89,7 +91,7 @@ fun VendorCard(
         onClick = onClick,
         interactionSource = interactionSource,
         modifier = modifier
-            .height(204.dp)
+            .then(if (isGrid) Modifier.height(204.dp) else Modifier)
             .scale(scale)
             .border(
                 width = 1.dp,
@@ -102,17 +104,28 @@ fun VendorCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 5.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(Brush.horizontalGradient(listOf(categoryColor, categoryColor.copy(alpha = 0.15f))))
-            )
-            Column(
-                modifier = Modifier.fillMaxSize().padding(14.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            if (isGrid) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(Brush.horizontalGradient(listOf(categoryColor, categoryColor.copy(alpha = 0.15f))))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(4.dp)
+                        .background(Brush.verticalGradient(listOf(categoryColor, categoryColor.copy(alpha = 0.15f))))
+                )
+            }
+
+            if (isGrid) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(14.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                     VendorCircleIcon(vendor.iconUri, vendor.category, categoryColor, size = 52.dp)
                     Box {
                         IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
@@ -148,6 +161,36 @@ fun VendorCard(
                         Text("Apri", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        } else {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    VendorCircleIcon(vendor.iconUri, vendor.category, categoryColor, size = 48.dp)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                        Text(vendor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            vendor.subtitle ?: vendor.category.displayName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        WriteStatusBadge(vendor.lastWriteResult, vendor.writeCount)
+                    }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Azioni per ${vendor.name}")
+                        }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Modifica") }, leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) }, onClick = { menuExpanded = false; onEditClick() })
+                            DropdownMenuItem(text = { Text("Duplica") }, leadingIcon = { Icon(Icons.Filled.FileCopy, contentDescription = null) }, onClick = { menuExpanded = false; onDuplicateClick() })
+                        }
                     }
                 }
             }
