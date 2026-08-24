@@ -102,6 +102,7 @@ class ComposeActivity : FragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleNfcIntent(intent)
     }
 

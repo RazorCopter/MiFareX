@@ -33,8 +33,8 @@ interface VendorDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVendor(vendor: VendorEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVendors(vendors: List<VendorEntity>)
+    @Upsert
+    suspend fun upsertVendors(vendors: List<VendorEntity>)
 
     @Update
     suspend fun updateVendor(vendor: VendorEntity)

@@ -46,6 +46,9 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
     private var originalWriteResult: WriteResult = WriteResult.NEVER_USED
     private var originalCreatedAt: Long = System.currentTimeMillis()
     private var originalSortOrder: Int = 0
+    // The current form exposes only normal block writes. Keep fields it does
+    // not yet edit so opening and saving a vendor never destroys them.
+    private var preservedPayload: PayloadConfig = PayloadConfig()
 
     /**
      * Load existing vendor data for editing.
@@ -63,7 +66,8 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
                 tagType = vendor.tagType
                 iconUri = vendor.iconUri
                 sectorKeys = repository.parseKeys(vendor)
-                writeBlocks = repository.parsePayload(vendor).blocks
+                preservedPayload = repository.parsePayload(vendor)
+                writeBlocks = preservedPayload.blocks
                 // Preserve metadata that should survive edits
                 originalWriteCount = vendor.writeCount
                 originalWriteResult = vendor.lastWriteResult
@@ -158,10 +162,7 @@ class VendorEditorViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             isLoading = true
 
-            val payload = PayloadConfig(
-                writeMode = WriteMode.SELECTIVE_BLOCKS,
-                blocks = writeBlocks
-            )
+            val payload = preservedPayload.copy(blocks = writeBlocks)
 
             val isEdit = editingVendorId != null
             val entity = VendorEntity(

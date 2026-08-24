@@ -131,7 +131,7 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
                     return@launch
                 }
 
-                val count = repository.importFromJson(jsonString)
+                val count = withContext(Dispatchers.IO) { repository.importFromJson(jsonString) }
                 refreshCounts()
                 state = ImportExportState.Success(
                     "Importazione completata!\n$count vendor importati/aggiornati con successo."

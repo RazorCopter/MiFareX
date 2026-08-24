@@ -226,6 +226,10 @@ public class Common extends Application {
     public void onCreate() {
         super.onCreate();
         mAppContext = getApplicationContext();
+        // ComposeActivity is now the primary entry point. Initialize the
+        // legacy static adapter here too, so Expert activities work after a
+        // cold start without depending on MainMenu having run first.
+        mNfcAdapter = NfcAdapter.getDefaultAdapter(this);
         mScale = getResources().getDisplayMetrics().density;
 
         try {

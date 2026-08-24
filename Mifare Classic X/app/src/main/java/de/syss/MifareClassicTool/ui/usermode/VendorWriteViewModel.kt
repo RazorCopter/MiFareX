@@ -2,6 +2,7 @@ package de.syss.MifareClassicTool.ui.usermode
 
 import android.app.Application
 import android.nfc.Tag
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.syss.MifareClassicTool.bridge.AndroidNfcTagHandle
@@ -19,9 +20,12 @@ import de.syss.MifareClassicTool.domain.nfc.NfcOperationSessionCoordinator
 import de.syss.MifareClassicTool.domain.nfc.PayloadSafetyValidator
 import de.syss.MifareClassicTool.domain.nfc.PayloadValidationResult
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 sealed class NfcWriteState {
     data object Idle : NfcWriteState()
@@ -76,6 +80,8 @@ class VendorWriteViewModel @JvmOverloads constructor(
 
     companion object {
         private const val OPERATION_TIMEOUT_MILLIS = 30_000L
+        private const val NFC_IO_TIMEOUT_MILLIS = 20_000L
+        private const val TAG = "VendorWriteViewModel"
         private const val AUTO_MODE_OWNER = "auto-mode"
         private fun vendorOwner(vendorId: String) = "vendor-detail:$vendorId"
     }
@@ -299,7 +305,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
             }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
-            val result = nfcGateway.write(tag, keys, payload, vendor.tagType)
+            val result = executeWrite(tag, keys, payload, vendor.tagType)
 
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
 
@@ -329,7 +335,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
             }
             val keys = repository.parseKeys(vendor)
             val payload = repository.parsePayload(vendor)
-            val result = nfcGateway.preflight(tag, keys, payload, vendor.tagType)
+            val result = executePreflight(tag, keys, payload, vendor.tagType)
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             _testState.value = NfcTestState.Result(result)
             sessionCoordinator.finish(session.token)
@@ -345,7 +351,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
                 return@launch
             }
             val keys = repository.parseKeys(vendor)
-            val dump = nfcGateway.read(tag, keys)
+            val dump = executeRead(tag, keys)
             if (!sessionCoordinator.isCurrent(session.token)) return@launch
             if (dump != null) {
                 _readState.value = NfcReadState.Success(dump)
@@ -378,7 +384,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
 
         val keys = repository.parseKeys(vendor)
         val payload = repository.parsePayload(vendor)
-        val result = nfcGateway.write(tag, keys, payload, vendor.tagType)
+        val result = executeWrite(tag, keys, payload, vendor.tagType)
 
         val writeResult = when (result) {
             is WriteOperationResult.Success -> WriteResult.SUCCESS
@@ -392,6 +398,50 @@ class VendorWriteViewModel @JvmOverloads constructor(
     }
 
     // ===== Helpers =====
+
+    private suspend fun executeWrite(
+        tag: NfcTagHandle,
+        keys: List<de.syss.MifareClassicTool.data.model.SectorKey>,
+        payload: de.syss.MifareClassicTool.data.model.PayloadConfig,
+        tagType: de.syss.MifareClassicTool.data.model.TagType
+    ): WriteOperationResult = try {
+        withTimeout(NFC_IO_TIMEOUT_MILLIS) { nfcGateway.write(tag, keys, payload, tagType) }
+    } catch (_: TimeoutCancellationException) {
+        WriteOperationResult.Error("Tempo scaduto durante la scrittura NFC. Riprova.")
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        Log.e(TAG, "NFC write failed")
+        WriteOperationResult.Error("Errore di comunicazione NFC. Riprova.")
+    }
+
+    private suspend fun executePreflight(
+        tag: NfcTagHandle,
+        keys: List<de.syss.MifareClassicTool.data.model.SectorKey>,
+        payload: de.syss.MifareClassicTool.data.model.PayloadConfig,
+        tagType: de.syss.MifareClassicTool.data.model.TagType
+    ): PreflightResult = try {
+        withTimeout(NFC_IO_TIMEOUT_MILLIS) { nfcGateway.preflight(tag, keys, payload, tagType) }
+    } catch (_: TimeoutCancellationException) {
+        PreflightResult.ConnectionError("Tempo scaduto durante la verifica NFC.")
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        Log.e(TAG, "NFC preflight failed")
+        PreflightResult.ConnectionError("Errore di comunicazione NFC.")
+    }
+
+    private suspend fun executeRead(
+        tag: NfcTagHandle,
+        keys: List<de.syss.MifareClassicTool.data.model.SectorKey>
+    ): Array<String>? = try {
+        withTimeout(NFC_IO_TIMEOUT_MILLIS) { nfcGateway.read(tag, keys) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        Log.e(TAG, "NFC read failed")
+        null
+    }
 
     private fun armVendorOperation(kind: NfcOperationKind, vendorId: String) {
         val session = sessionCoordinator.arm(

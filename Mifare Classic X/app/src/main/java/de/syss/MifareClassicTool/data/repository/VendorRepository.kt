@@ -1,31 +1,41 @@
 package de.syss.MifareClassicTool.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import de.syss.MifareClassicTool.data.db.AppDatabase
 import de.syss.MifareClassicTool.data.db.UidDao
 import de.syss.MifareClassicTool.data.db.VendorDao
 import de.syss.MifareClassicTool.data.model.*
+import de.syss.MifareClassicTool.data.importexport.VendorImportValidator
 import de.syss.MifareClassicTool.data.security.VendorIconStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import java.util.UUID
 
+class CorruptVendorConfigurationException(vendorId: String, field: String) :
+    IllegalStateException("Configurazione corrotta per vendor '$vendorId' ($field).")
+
 /**
  * Repository for Vendor CRUD operations and JSON import/export.
  * Single source of truth for all Vendor data. Bridges Room DB
  * and JSON serialization.
  */
-class VendorRepository(context: Context) {
+class VendorRepository internal constructor(
+    context: Context,
+    private val database: AppDatabase
+) {
+
+    constructor(context: Context) : this(context, AppDatabase.getInstance(context))
 
     private val appContext = context.applicationContext
 
-    private val dao: VendorDao = AppDatabase.getInstance(context).vendorDao()
-    private val uidDao: UidDao = AppDatabase.getInstance(context).uidDao()
+    private val dao: VendorDao = database.vendorDao()
+    private val uidDao: UidDao = database.uidDao()
 
     private val json = Json {
         prettyPrint = true
-        ignoreUnknownKeys = true
+        ignoreUnknownKeys = false
         encodeDefaults = true
     }
 
@@ -75,13 +85,13 @@ class VendorRepository(context: Context) {
     fun entityToConfig(entity: VendorEntity): VendorConfig {
         val keys: List<SectorKey> = try {
             json.decodeFromString(entity.keysJson)
-        } catch (e: Exception) {
-            emptyList()
+        } catch (_: Exception) {
+            throw CorruptVendorConfigurationException(entity.id, "chiavi")
         }
         val payload: PayloadConfig = try {
             json.decodeFromString(entity.payloadJson)
-        } catch (e: Exception) {
-            PayloadConfig()
+        } catch (_: Exception) {
+            throw CorruptVendorConfigurationException(entity.id, "payload")
         }
 
         return VendorConfig(
@@ -131,12 +141,12 @@ class VendorRepository(context: Context) {
      * Export all vendors to a JSON string.
      */
     suspend fun exportAllToJson(): String {
-        val entities = dao.getAllVendorsSnapshot()
-        val uidEntities = uidDao.getAllUidsSnapshot()
-        
-        val configs = entities.map { entityToConfig(it) }
-        val bundle = VendorExportBundle(vendors = configs, uids = uidEntities)
-        return json.encodeToString(bundle)
+        return database.withTransaction {
+            val entities = dao.getAllVendorsSnapshot()
+            val uidEntities = uidDao.getAllUidsSnapshot()
+            val configs = entities.map { entityToConfig(it) }
+            json.encodeToString(VendorExportBundle(vendors = configs, uids = uidEntities))
+        }
     }
 
     /**
@@ -154,15 +164,19 @@ class VendorRepository(context: Context) {
      */
     suspend fun importFromJson(jsonString: String): Int {
         val bundle: VendorExportBundle = json.decodeFromString(jsonString)
-        val entities = bundle.vendors.mapIndexed { index, config ->
+        val validated = VendorImportValidator.validate(bundle)
+        val entities = validated.vendors.mapIndexed { index, config ->
             configToEntity(config, sortOrder = index)
         }
-        dao.insertVendors(entities)
-        
-        if (bundle.uids.isNotEmpty()) {
-            uidDao.insertUids(bundle.uids)
+
+        database.withTransaction {
+            // Upsert avoids REPLACE's delete-and-reinsert behavior, which would
+            // trigger the UID foreign-key cascade for an existing vendor.
+            dao.upsertVendors(entities)
+            if (validated.uids.isNotEmpty()) {
+                uidDao.insertUids(validated.uids)
+            }
         }
-        
         return entities.size
     }
 
