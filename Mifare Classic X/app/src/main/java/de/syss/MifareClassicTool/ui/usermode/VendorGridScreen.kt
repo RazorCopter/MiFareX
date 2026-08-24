@@ -157,7 +157,7 @@ fun VendorGridScreen(
                     EmptyVendorState(onAddClick = onAddVendorClick, nfcStatus = nfcStatus, modifier = Modifier.fillMaxSize())
                 } else {
                     LazyVerticalGrid(
-                        columns = if (isGridView) GridCells.Adaptive(minSize = 160.dp) else GridCells.Fixed(1),
+                        columns = if (isGridView) GridCells.Fixed(2) else GridCells.Fixed(1),
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 96.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
