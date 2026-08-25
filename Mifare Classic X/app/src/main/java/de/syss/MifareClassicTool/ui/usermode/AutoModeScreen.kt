@@ -226,8 +226,10 @@ private fun OperationCard(content: @Composable androidx.compose.foundation.layou
 private fun UnknownUidDialog(uid: String, viewModel: VendorWriteViewModel, onDismiss: () -> Unit) {
     val vendors by viewModel.getAllVendors().collectAsStateWithLifecycle(initialValue = emptyList())
     var selectedVendor by remember { mutableStateOf<VendorEntity?>(null) }
+    var labelText by remember { mutableStateOf("") }
     var dropdownExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val isLabelValid = labelText.trim().isNotEmpty() && labelText.length <= 50
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -236,7 +238,7 @@ private fun UnknownUidDialog(uid: String, viewModel: VendorWriteViewModel, onDis
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 MctxModeBadge("Richiede associazione", expert = true)
-                Text("Il tag non è associato. Scegli un vendor: la scrittura avverrà soltanto al prossimo avvicinamento.")
+                Text("Il tag non è associato. Inserisci una label e scegli un vendor: la scrittura avverrà soltanto al prossimo avvicinamento.")
                 Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                     Text(
                         uid.uppercase().chunked(2).joinToString(" "),
@@ -246,11 +248,28 @@ private fun UnknownUidDialog(uid: String, viewModel: VendorWriteViewModel, onDis
                         textAlign = TextAlign.Center
                     )
                 }
+                OutlinedTextField(
+                    value = labelText,
+                    onValueChange = { newValue ->
+                        if (newValue.length <= 50) {
+                            labelText = newValue
+                        }
+                    },
+                    label = { Text("Label Proprietario") },
+                    placeholder = { Text("es. Chiave Fabio") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = labelText.isNotEmpty() && !isLabelValid,
+                    supportingText = {
+                        Text("${labelText.length}/50")
+                    }
+                )
                 ExposedDropdownMenuBox(expanded = dropdownExpanded, onExpandedChange = { dropdownExpanded = it }) {
                     OutlinedTextField(
                         value = selectedVendor?.name ?: "Seleziona vendor",
                         onValueChange = {},
                         readOnly = true,
+                        label = { Text("Vendor") },
                         modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(dropdownExpanded) }
                     )
@@ -267,9 +286,9 @@ private fun UnknownUidDialog(uid: String, viewModel: VendorWriteViewModel, onDis
         },
         confirmButton = {
             Button(
-                enabled = selectedVendor != null,
+                enabled = selectedVendor != null && isLabelValid,
                 onClick = {
-                    selectedVendor?.let { viewModel.associateUidOnly(uid, it.id, context) }
+                    selectedVendor?.let { viewModel.associateUidOnly(uid, it.id, labelText.trim(), context) }
                     onDismiss()
                 }
             ) { Text("Associa UID") }

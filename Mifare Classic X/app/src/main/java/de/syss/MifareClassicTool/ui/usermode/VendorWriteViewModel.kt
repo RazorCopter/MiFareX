@@ -282,10 +282,10 @@ class VendorWriteViewModel @JvmOverloads constructor(
         _autoModeState.value = AutoModeState.Listening
     }
 
-    fun associateUidOnly(uid: String, vendorId: String, context: android.content.Context? = null) {
+    fun associateUidOnly(uid: String, vendorId: String, label: String = "", context: android.content.Context? = null) {
         viewModelScope.launch {
             try {
-                repository.saveUid(uid, vendorId)
+                repository.saveUid(uid, vendorId, label.takeIf { it.isNotEmpty() })
                 context?.let {
                     android.widget.Toast.makeText(it, "UID associato con successo", android.widget.Toast.LENGTH_SHORT).show()
                 }
