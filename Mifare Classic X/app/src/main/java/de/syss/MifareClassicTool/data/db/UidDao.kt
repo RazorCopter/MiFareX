@@ -19,6 +19,9 @@ interface UidDao {
     @Query("SELECT * FROM uid_entries WHERE vendorId = :vendorId ORDER BY createdAt ASC")
     fun getUidsForVendor(vendorId: String): Flow<List<UidEntry>>
 
+    @Query("SELECT * FROM uid_entries WHERE vendorId = :vendorId ORDER BY createdAt ASC")
+    suspend fun getUidsForVendorSnapshot(vendorId: String): List<UidEntry>
+
     @Query("SELECT * FROM uid_entries WHERE uid = :uid LIMIT 1")
     suspend fun getByUid(uid: String): UidEntry?
 

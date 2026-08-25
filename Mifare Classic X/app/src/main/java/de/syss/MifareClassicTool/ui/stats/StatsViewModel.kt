@@ -96,8 +96,9 @@ class StatsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val vendors = repository.getAllVendorsSnapshot()
+                val uidDao = database.uidDao()
                 val vendorStats = vendors.map { vendor ->
-                    val uidsForVendor = dao.getUidsForVendor(vendor.id)
+                    val uidsForVendor = uidDao.getUidsForVendorSnapshot(vendor.id).map { it.uid }
                     val totalRecharges = uidsForVendor.sumOf { uid ->
                         dao.getWriteCountByUid(uid)
                     }
@@ -105,11 +106,34 @@ class StatsViewModel(app: Application) : AndroidViewModel(app) {
                         dao.getLastOperationForUid(uid)?.timestamp
                     }.maxOrNull()
 
+                    val uidDetails = uidsForVendor.mapNotNull { uid ->
+                        val uidEntry = uidDao.getByUid(uid)
+                        uidEntry?.let {
+                            val rechargeCount = dao.getWriteCountByUidAndVendor(uid, vendor.id)
+                            val lastOperation = dao.getLastOperationForUid(uid)
+                            val successCount = dao.getCountByUidAndOutcome(uid, OperationOutcome.SUCCESS)
+                            val totalCount = dao.getWriteCountByUid(uid)
+                            val successRate = if (totalCount > 0) {
+                                successCount.toFloat() / totalCount.toFloat()
+                            } else {
+                                0f
+                            }
+
+                            UidStatItem(
+                                uid = uid,
+                                label = uidEntry.label,
+                                rechargeCount = rechargeCount,
+                                lastRechargeDate = lastOperation?.timestamp,
+                                successRate = successRate
+                            )
+                        }
+                    }
+
                     VendorStatItem(
                         vendor = vendor,
                         totalRecharges = totalRecharges,
                         lastRechargeDate = lastRechargeDate,
-                        uidDetails = emptyList()
+                        uidDetails = uidDetails
                     )
                 }
                 _uiState.value = _uiState.value.copy(vendorStats = vendorStats)

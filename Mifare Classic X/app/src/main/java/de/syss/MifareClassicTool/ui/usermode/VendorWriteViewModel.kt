@@ -386,6 +386,8 @@ class VendorWriteViewModel @JvmOverloads constructor(
             sessionCoordinator.finish(session.token)
             val success = result is PreflightResult.Ready
             safelyRecord {
+                val hexUid = tag.uid.toHexString()
+                val uidEntry = repository.getUidByHexString(hexUid)
                 operationLogRepository.record(
                     type = OperationType.KEY_TEST,
                     outcome = if (success) OperationOutcome.SUCCESS else OperationOutcome.FAILED,
@@ -393,6 +395,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
                     vendorId = vendor.id,
                     vendorName = vendor.name,
                     rawUid = tag.uid,
+                    uid = uidEntry?.uid,
                     summary = if (success) "Chiavi verificate" else "Verifica chiavi non superata",
                     technicalDetails = preflightDescription(result),
                     durationMillis = System.currentTimeMillis() - startedAt
@@ -420,6 +423,8 @@ class VendorWriteViewModel @JvmOverloads constructor(
             }
             sessionCoordinator.finish(session.token)
             safelyRecord {
+                val hexUid = tag.uid.toHexString()
+                val uidEntry = repository.getUidByHexString(hexUid)
                 operationLogRepository.record(
                     type = OperationType.READ,
                     outcome = if (dump != null) OperationOutcome.SUCCESS else OperationOutcome.FAILED,
@@ -427,6 +432,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
                     vendorId = vendor.id,
                     vendorName = vendor.name,
                     rawUid = tag.uid,
+                    uid = uidEntry?.uid,
                     summary = if (dump != null) "Lettura tag completata" else "Lettura tag fallita",
                     technicalDetails = dump?.let { "${it.size} righe lette; contenuto non archiviato" },
                     durationMillis = System.currentTimeMillis() - startedAt
@@ -445,11 +451,13 @@ class VendorWriteViewModel @JvmOverloads constructor(
             if (vendor == null) {
                 _autoModeState.value = AutoModeState.UnknownUid(uid)
                 safelyRecord {
+                    val uidEntry = repository.getUidByHexString(uid)
                     operationLogRepository.record(
                         type = OperationType.AUTO_WRITE,
                         outcome = OperationOutcome.BLOCKED,
                         source = OperationSource.AUTO_MODE,
                         rawUid = tag.uid,
+                        uid = uidEntry?.uid,
                         summary = "UID non associato",
                         technicalDetails = "Nessuna regola vendor disponibile",
                         durationMillis = System.currentTimeMillis() - startedAt
@@ -562,6 +570,8 @@ class VendorWriteViewModel @JvmOverloads constructor(
             else -> 0
         }
         safelyRecord {
+            val hexUid = rawUid.toHexString()
+            val uidEntry = repository.getUidByHexString(hexUid)
             operationLogRepository.record(
                 type = type,
                 outcome = outcome,
@@ -569,6 +579,7 @@ class VendorWriteViewModel @JvmOverloads constructor(
                 vendorId = vendor.id,
                 vendorName = vendor.name,
                 rawUid = rawUid,
+                uid = uidEntry?.uid,
                 summary = when (result) {
                     is WriteOperationResult.Success -> "Scrittura completata"
                     is WriteOperationResult.Partial -> "Scrittura completata parzialmente"

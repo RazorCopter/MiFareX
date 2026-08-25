@@ -213,6 +213,8 @@ class VendorRepository internal constructor(
         return dao.getVendorById(entry.vendorId)
     }
 
+    suspend fun getUidByHexString(hexUid: String): UidEntry? = uidDao.getByUid(hexUid.lowercase())
+
     suspend fun saveUid(uid: String, vendorId: String, label: String? = null) {
         uidDao.insert(UidEntry(uid = uid.lowercase(), vendorId = vendorId, label = label))
     }

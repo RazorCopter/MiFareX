@@ -71,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
+import de.syss.MifareClassicTool.AppConstants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +96,7 @@ fun VendorGridScreen(
                 title = {
                     Column {
                         Text("MiFareX", style = MaterialTheme.typography.titleLarge)
-                        Text("Operator console", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Operator console v${AppConstants.VERSION_NAME}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                 },
                 actions = {
