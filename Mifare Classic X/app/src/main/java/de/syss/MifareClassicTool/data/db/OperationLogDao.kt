@@ -71,4 +71,40 @@ interface OperationLogDao {
     /** Return total write operations (MANUAL_WRITE + AUTO_WRITE). */
     @Query("SELECT COUNT(*) FROM operation_logs WHERE type IN ('MANUAL_WRITE','AUTO_WRITE')")
     suspend fun getTotalWriteCount(): Int
+
+    /** Return all operations for a specific UID. */
+    @Query("SELECT * FROM operation_logs WHERE uid = :uid ORDER BY timestamp DESC")
+    suspend fun getOperationsByUid(uid: String): List<OperationLogEntity>
+
+    /** Return the last operation for a specific UID. */
+    @Query("SELECT * FROM operation_logs WHERE uid = :uid ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLastOperationForUid(uid: String): OperationLogEntity?
+
+    /** Count write operations for a specific UID. */
+    @Query("SELECT COUNT(*) FROM operation_logs WHERE uid = :uid AND type IN ('MANUAL_WRITE','AUTO_WRITE')")
+    suspend fun getWriteCountByUid(uid: String): Int
+
+    /** Count write operations for a specific UID filtered by vendor. */
+    @Query("SELECT COUNT(*) FROM operation_logs WHERE uid = :uid AND vendorId = :vendorId AND type IN ('MANUAL_WRITE','AUTO_WRITE')")
+    suspend fun getWriteCountByUidAndVendor(uid: String, vendorId: String): Int
+
+    /** Get success count for a specific UID. */
+    @Query("SELECT COUNT(*) FROM operation_logs WHERE uid = :uid AND outcome = :outcome")
+    suspend fun getCountByUidAndOutcome(uid: String, outcome: OperationOutcome): Int
+
+    /** Get all UIDs that have been used in operations with their latest operation timestamp. */
+    @Query("""
+        SELECT DISTINCT uid FROM operation_logs
+        WHERE uid IS NOT NULL
+        ORDER BY (SELECT MAX(timestamp) FROM operation_logs ol2 WHERE ol2.uid = operation_logs.uid) DESC
+    """)
+    suspend fun getUsedUids(): List<String>
+
+    /** Get operations for a vendor grouped by UID - returns list of UIDs with their stats. */
+    @Query("""
+        SELECT DISTINCT uid FROM operation_logs
+        WHERE vendorId = :vendorId AND uid IS NOT NULL
+        ORDER BY (SELECT MAX(timestamp) FROM operation_logs ol2 WHERE ol2.uid = operation_logs.uid AND ol2.vendorId = :vendorId) DESC
+    """)
+    suspend fun getUidsForVendor(vendorId: String): List<String>
 }

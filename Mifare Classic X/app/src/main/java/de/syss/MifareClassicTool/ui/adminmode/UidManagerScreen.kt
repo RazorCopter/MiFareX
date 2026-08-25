@@ -79,7 +79,7 @@ fun UidManagerScreen(
                             entry = entry,
                             currentVendor = viewModel.vendorForId(entry.vendorId),
                             vendors = vendors,
-                            onReassociate = { newVendorId -> viewModel.reassociate(entry.uid, newVendorId) },
+                            onReassociate = { newVendorId, newLabel -> viewModel.reassociate(entry.uid, newVendorId, newLabel) },
                             onDelete = { viewModel.delete(entry.uid) }
                         )
                     }
@@ -92,8 +92,8 @@ fun UidManagerScreen(
         ManualUidDialog(
             vendors = vendors,
             onDismiss = { showAddDialog = false },
-            onConfirm = { uid, vendorId ->
-                viewModel.addManualUid(uid, vendorId)
+            onConfirm = { uid, label, vendorId ->
+                viewModel.addManualUid(uid, label, vendorId)
                 showAddDialog = false
             }
         )
@@ -106,7 +106,7 @@ private fun UidCard(
     entry: UidEntry,
     currentVendor: VendorEntity?,
     vendors: List<VendorEntity>,
-    onReassociate: (String) -> Unit,
+    onReassociate: (vendorId: String, label: String) -> Unit,
     onDelete: () -> Unit
 ) {
     var showReassignDialog by remember { mutableStateOf(false) }
@@ -121,14 +121,24 @@ private fun UidCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // UID + vendor info
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = entry.uid.uppercase().chunked(2).joinToString(" "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
+            // UID + label + vendor info
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = entry.uid.uppercase().chunked(2).joinToString(" "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    entry.label?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
                 if (currentVendor != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -176,10 +186,11 @@ private fun UidCard(
     if (showReassignDialog) {
         ReassignDialog(
             uid = entry.uid,
+            currentLabel = entry.label,
             currentVendorId = entry.vendorId,
             vendors = vendors,
-            onConfirm = { newId ->
-                onReassociate(newId)
+            onConfirm = { newVendorId, newLabel ->
+                onReassociate(newVendorId, newLabel)
                 showReassignDialog = false
             },
             onDismiss = { showReassignDialog = false }
@@ -215,15 +226,18 @@ private fun UidCard(
 @Composable
 private fun ReassignDialog(
     uid: String,
+    currentLabel: String?,
     currentVendorId: String,
     vendors: List<VendorEntity>,
-    onConfirm: (String) -> Unit,
+    onConfirm: (vendorId: String, label: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selected by remember {
         mutableStateOf(vendors.find { it.id == currentVendorId })
     }
+    var labelText by remember { mutableStateOf(currentLabel ?: "") }
     var dropdownExpanded by remember { mutableStateOf(false) }
+    val isLabelValid = labelText.trim().isNotEmpty() && labelText.length <= 50
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -282,12 +296,28 @@ private fun ReassignDialog(
                         }
                     }
                 }
+                OutlinedTextField(
+                    value = labelText,
+                    onValueChange = { newValue ->
+                        if (newValue.length <= 50) {
+                            labelText = newValue
+                        }
+                    },
+                    label = { Text("Label Proprietario") },
+                    placeholder = { Text("es. Chiave Fabio") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = labelText.isNotEmpty() && !isLabelValid,
+                    supportingText = {
+                        Text("${labelText.length}/50")
+                    }
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = { selected?.let { onConfirm(it.id) } },
-                enabled = selected != null && selected?.id != currentVendorId
+                onClick = { selected?.let { onConfirm(it.id, labelText.trim()) } },
+                enabled = selected != null && isLabelValid && (selected?.id != currentVendorId || labelText.trim() != currentLabel)
             ) { Text("Salva") }
         },
         dismissButton = {
@@ -330,14 +360,16 @@ private fun EmptyUidState(modifier: Modifier = Modifier) {
 fun ManualUidDialog(
     vendors: List<VendorEntity>,
     onDismiss: () -> Unit,
-    onConfirm: (uid: String, vendorId: String) -> Unit
+    onConfirm: (uid: String, label: String, vendorId: String) -> Unit
 ) {
     var uidText by remember { mutableStateOf("") }
+    var labelText by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     var selectedVendor by remember { mutableStateOf<VendorEntity?>(null) }
-    
+
     // Light validation: allow only hex chars and spaces, remove spaces for validation
     val isUidValid = uidText.replace(Regex("\\s+"), "").matches(Regex("^[0-9A-Fa-f]+$"))
+    val isLabelValid = labelText.trim().isNotEmpty() && labelText.length <= 50
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -358,6 +390,23 @@ fun ManualUidDialog(
                         if (uidText.isNotEmpty() && !isUidValid) {
                             Text("Solo caratteri esadecimali (0-9, A-F)")
                         }
+                    }
+                )
+
+                OutlinedTextField(
+                    value = labelText,
+                    onValueChange = { newValue ->
+                        if (newValue.length <= 50) {
+                            labelText = newValue
+                        }
+                    },
+                    label = { Text("Label Proprietario") },
+                    placeholder = { Text("es. Chiave Fabio") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = labelText.isNotEmpty() && !isLabelValid,
+                    supportingText = {
+                        Text("${labelText.length}/50")
                     }
                 )
 
@@ -407,10 +456,10 @@ fun ManualUidDialog(
                 onClick = {
                     val cleanUid = uidText.replace(Regex("\\s+"), "")
                     selectedVendor?.let {
-                        onConfirm(cleanUid, it.id)
+                        onConfirm(cleanUid, labelText.trim(), it.id)
                     }
                 },
-                enabled = isUidValid && uidText.isNotEmpty() && selectedVendor != null
+                enabled = isUidValid && uidText.isNotEmpty() && isLabelValid && selectedVendor != null
             ) {
                 Text("Associa e Salva")
             }

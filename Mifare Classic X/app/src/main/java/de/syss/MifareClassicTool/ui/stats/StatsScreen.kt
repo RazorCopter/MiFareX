@@ -7,8 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -118,6 +121,33 @@ fun StatsScreen(
                                     icon = Icons.Filled.Help,
                                     color = MaterialTheme.colorScheme.surfaceTint
                                 )
+                            }
+                        }
+                    }
+
+                    // Vendor breakdown section
+                    item {
+                        if (uiState.vendorStats.isNotEmpty()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    "Ricariche per Vendor",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
+                                uiState.vendorStats.forEach { vendorStat ->
+                                    VendorStatCard(
+                                        vendorStat = vendorStat,
+                                        isExpanded = uiState.expandedVendorId == vendorStat.vendor.id,
+                                        onExpandToggle = {
+                                            if (uiState.expandedVendorId == vendorStat.vendor.id) {
+                                                viewModel.collapseVendor()
+                                            } else {
+                                                viewModel.expandVendorDetails(vendorStat.vendor.id)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -337,6 +367,132 @@ private fun OutcomeRow(
                         shape = MaterialTheme.shapes.extraSmall
                     )
             )
+        }
+    }
+}
+
+@Composable
+private fun VendorStatCard(
+    vendorStat: VendorStatItem,
+    isExpanded: Boolean,
+    onExpandToggle: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (!isExpanded) Modifier else Modifier),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandToggle() }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        vendorStat.vendor.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Ricariche: ${vendorStat.totalRecharges}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        vendorStat.lastRechargeDate?.let { timestamp ->
+                            val daysAgo = ((System.currentTimeMillis() - timestamp) / (1000 * 60 * 60 * 24)).toInt()
+                            Text(
+                                "Ultima: ${daysAgo}g fa",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Icon(
+                    if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (isExpanded) "Riduci" else "Espandi",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            if (isExpanded && vendorStat.uidDetails.isNotEmpty()) {
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    vendorStat.uidDetails.forEach { uidStat ->
+                        UidStatItemComposable(uidStat = uidStat)
+                    }
+                }
+            } else if (isExpanded && vendorStat.uidDetails.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UidStatItemComposable(uidStat: UidStatItem) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                uidStat.label?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Text(
+                    uidStat.uid.uppercase().chunked(2).joinToString(" "),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "${uidStat.rechargeCount}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${(uidStat.successRate * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (uidStat.successRate >= 0.9f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }

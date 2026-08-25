@@ -23,10 +23,10 @@ class UidManagerViewModel(application: Application) : AndroidViewModel(applicati
     fun vendorForId(vendorId: String): VendorEntity? =
         vendors.value.find { it.id == vendorId }
 
-    fun reassociate(uid: String, newVendorId: String) {
+    fun reassociate(uid: String, newVendorId: String, newLabel: String) {
         viewModelScope.launch {
             try {
-                repository.saveUid(uid, newVendorId)
+                repository.saveUid(uid, newVendorId, newLabel)
                 android.widget.Toast.makeText(getApplication(), "UID riassociato con successo", android.widget.Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -41,12 +41,12 @@ class UidManagerViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun addManualUid(uid: String, vendorId: String) {
+    fun addManualUid(uid: String, label: String, vendorId: String) {
         viewModelScope.launch {
             try {
                 val formattedUid = uid.trim().uppercase()
-                if (formattedUid.isNotEmpty()) {
-                    repository.saveUid(formattedUid, vendorId)
+                if (formattedUid.isNotEmpty() && label.isNotEmpty()) {
+                    repository.saveUid(formattedUid, vendorId, label)
                     android.widget.Toast.makeText(getApplication(), "UID associato con successo", android.widget.Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {

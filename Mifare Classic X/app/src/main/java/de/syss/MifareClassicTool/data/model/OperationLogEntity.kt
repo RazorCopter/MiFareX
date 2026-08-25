@@ -35,7 +35,8 @@ enum class OperationSource {
         Index(value = ["timestamp"]),
         Index(value = ["vendorId"]),
         Index(value = ["type"]),
-        Index(value = ["outcome"])
+        Index(value = ["outcome"]),
+        Index(value = ["uid"])
     ]
 )
 data class OperationLogEntity(
@@ -47,6 +48,7 @@ data class OperationLogEntity(
     val source: OperationSource,
     val vendorId: String? = null,
     val vendorName: String? = null,
+    val uid: String? = null,
     val uidSuffix: String? = null,
     val summary: String,
     val technicalDetails: String? = null,

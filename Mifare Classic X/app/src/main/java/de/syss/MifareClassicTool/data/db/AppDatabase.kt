@@ -13,7 +13,7 @@ import de.syss.MifareClassicTool.data.model.OperationLogEntity
 
 @Database(
     entities = [VendorEntity::class, UidEntry::class, OperationLogEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -68,6 +68,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE operation_logs ADD COLUMN uid TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_operation_logs_uid ON operation_logs(uid)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -75,7 +82,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "mctx.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     // Foreign key constraints (ON DELETE CASCADE) are disabled by default
                     // in SQLite on Android — this callback enables them on every connection.
                     .addCallback(object : RoomDatabase.Callback() {
